@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+reference/current/*.png
+reference/current/*.jpg
+reference/current/*.jpeg
+reference/current/*.webp
+reference/original/*.png
+reference/original/*.jpg
+reference/original/*.jpeg
+reference/original/*.webp
+reference/compare-*.html
+.DS_Store
+npm-debug.log*
