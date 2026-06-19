@@ -81,6 +81,12 @@ This document records issues and constraints raised during playtesting so future
 - The overlay width must be large enough for the longer retry text.
 - This is covered by `node scripts/check-overlay-and-base.mjs`.
 
+## HUD Alignment
+
+- HUD icon/value pairs should read as aligned rows. The stage number should be vertically centered beside the flag icon, matching the life icon/value row.
+- The stage flag icon should stay visually close to the life tank icon size; it should not dominate the HUD row.
+- This is covered by `node scripts/check-overlay-and-base.mjs`.
+
 ## Title Screen and 2 Players
 
 - Title screen groups should be visually centered by measured content width, not hardcoded by eyeballed x positions.

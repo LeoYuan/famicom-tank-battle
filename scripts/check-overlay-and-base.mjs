@@ -19,6 +19,7 @@ globalThis.__overlayBaseTest = {
   drawStageIntro,
   drawTitleScreen,
   drawOverlayMessage,
+  drawHud,
   drawBase,
   hitTile,
   handleStartPause,
@@ -120,6 +121,8 @@ checkBattlefieldIsClipped();
 checkTankShieldStaysInsideBattlefield();
 checkBattlefieldEdgeDoesNotCoverTanks();
 checkRightBattlefieldEdgeDoesNotDrawInternalGap();
+checkHudStageNumberAlignsWithFlag();
+checkHudFlagSizeMatchesTankIcon();
 checkEnterPauseToggle();
 
 console.log('Overlay and base visual contracts pass');
@@ -351,6 +354,75 @@ function isBattlefieldEdgeOperation(operation) {
         (operation.x === 0 && operation.y === 207 && operation.w === 208 && operation.h === 1) ||
         (operation.x === 0 && operation.y === 0 && operation.w === 1 && operation.h === 208)))
   );
+}
+
+function checkHudStageNumberAlignsWithFlag() {
+  operations.length = 0;
+  context.__pixelTextCalls.length = 0;
+  const game = api.createGame(7);
+  api.setGame(game);
+
+  api.drawHud();
+
+  const flagPole = operations.find(
+    (operation) =>
+      operation.op === 'fillRect' &&
+      operation.fillStyle === '#111' &&
+      operation.x === 220 &&
+      operation.y === 169 &&
+      operation.w === 2 &&
+      operation.h === 11,
+  );
+  const stageNumber = context.__pixelTextCalls.find((call) => call.text === '07');
+
+  if (!flagPole || !stageNumber) {
+    console.error('Expected HUD to render both the stage flag and stage number');
+    process.exit(1);
+  }
+
+  const textHeight = 7;
+  const expectedY = Math.round(flagPole.y + (flagPole.h - textHeight) / 2);
+  if (stageNumber.y !== expectedY) {
+    console.error(`Expected HUD stage number y=${expectedY} to align with flag center, got ${stageNumber.y}`);
+    process.exit(1);
+  }
+}
+
+function checkHudFlagSizeMatchesTankIcon() {
+  operations.length = 0;
+  const game = api.createGame(1);
+  api.setGame(game);
+
+  api.drawHud();
+
+  const tankTrack = operations.find(
+    (operation) =>
+      operation.op === 'fillRect' &&
+      operation.fillStyle === '#b86020' &&
+      operation.x === 219 &&
+      operation.y === 128 &&
+      operation.w === 3 &&
+      operation.h === 8,
+  );
+  const flagPole = operations.find(
+    (operation) =>
+      operation.op === 'fillRect' &&
+      operation.fillStyle === '#111' &&
+      operation.x === 220 &&
+      operation.y === 169 &&
+      operation.w === 2 &&
+      operation.h === 11,
+  );
+
+  if (!tankTrack || !flagPole) {
+    console.error('Expected HUD to render both the life tank icon and a compact stage flag icon');
+    process.exit(1);
+  }
+
+  if (flagPole.h > tankTrack.h + 3) {
+    console.error(`Expected HUD flag height to stay close to tank icon height, got flag=${flagPole.h}, tank=${tankTrack.h}`);
+    process.exit(1);
+  }
 }
 
 function checkEnterPauseToggle() {

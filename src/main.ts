@@ -1745,8 +1745,8 @@ function drawHud(): void {
   pixelText('IP', HUD_X + 10, 112, 1, '#111');
   drawTankIcon(HUD_X + 11, 128, '#b86020');
   pixelText(String(Math.max(0, game.lives)), HUD_X + 27, 129, 1, '#111');
-  drawFlag(HUD_X + 12, 168);
-  pixelText(String(game.stage).padStart(2, '0'), HUD_X + 27, 184, 1, '#111');
+  drawFlag(HUD_X + 12, 169);
+  pixelText(String(game.stage).padStart(2, '0'), HUD_X + 27, 171, 1, '#111');
   pixelText(String(game.score).padStart(6, '0'), HUD_X + 5, 224, 1, '#d8c050');
 }
 
@@ -1783,12 +1783,12 @@ function drawEnemyCounterIcon(x: number, y: number): void {
 
 function drawFlag(x: number, y: number): void {
   ctx.fillStyle = '#111';
-  ctx.fillRect(x, y, 2, 15);
+  ctx.fillRect(x, y, 2, 11);
   ctx.fillStyle = '#d87818';
   ctx.beginPath();
-  ctx.moveTo(x + 2, y);
-  ctx.lineTo(x + 15, y + 5);
-  ctx.lineTo(x + 2, y + 10);
+  ctx.moveTo(x + 2, y + 1);
+  ctx.lineTo(x + 11, y + 4);
+  ctx.lineTo(x + 2, y + 7);
   ctx.closePath();
   ctx.fill();
 }
