@@ -1,4 +1,5 @@
 :root {
+  --screen-scale: 4;
   background: #111;
   color: #f4f4f4;
   font-family: "Courier New", Courier, monospace;
@@ -37,8 +38,8 @@ body {
 }
 
 .screen-frame {
-  width: 1024px;
-  height: 960px;
+  width: calc((256px * var(--screen-scale)) + 16px);
+  height: calc((240px * var(--screen-scale)) + 16px);
   display: grid;
   place-items: center;
   background: #000;
@@ -55,25 +56,4 @@ canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   background: #777;
-}
-
-@media (max-width: 1060px), (max-height: 996px) {
-  .screen-frame {
-    width: 768px;
-    height: 720px;
-  }
-}
-
-@media (max-width: 804px), (max-height: 756px) {
-  .screen-frame {
-    width: 512px;
-    height: 480px;
-  }
-}
-
-@media (max-width: 548px), (max-height: 516px) {
-  .screen-frame {
-    width: 256px;
-    height: 240px;
-  }
 }

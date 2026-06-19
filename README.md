@@ -38,5 +38,31 @@ open "release/mac-arm64/Famicom Tank Battle.app"
 
 - `WASD` or arrow keys: move
 - `Space`: fire
-- `Enter`: start / pause / next stage
+- `Enter`: start / pause / next stage / retry
 - `R`: restart
+
+## Gameplay
+
+- Protect the base eagle while destroying enemy tanks.
+- The title screen supports stage selection for stages 1-8.
+- 1 player mode is implemented. The 2 players menu item is displayed for original-style presentation, but cooperative 2P gameplay is not implemented yet.
+- Stage difficulty is designed to ramp across the first 8 stages through route pressure, destructible cover, steel, water, forest, ice, spawn timing, and enemy count.
+
+## Power-ups
+
+Flashing enemy tanks can drop one temporary power-up:
+
+- Grenade: destroys all visible enemies.
+- Helmet: gives the player a temporary shield.
+- Shovel: temporarily protects the base wall with steel.
+- Star: upgrades player firing power.
+- Tank: grants one extra life.
+- Timer: temporarily freezes enemies.
+
+## Regression checks
+
+```bash
+npm run check:regressions
+```
+
+The regression suite covers stage difficulty, enemy movement, spawn safety, brick damage, visual alignment, shooting collision, overlays, base behavior, stage select, power-up behavior, power-up icon readability, and integer screen scaling.
