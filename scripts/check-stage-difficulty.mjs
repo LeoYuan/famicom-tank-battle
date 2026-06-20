@@ -73,13 +73,13 @@ const TERRAIN = ['S', 'W', 'F', 'I'];
 
 const stageTargets = [
   { minPath: 14, maxOpenRing: 0, minProtection: 5, required: {}, forbidden: ['W', 'F', 'I'] },
-  { minPath: 13, maxOpenRing: 1, minProtection: 5, required: {}, forbidden: ['W', 'F', 'I'] },
-  { minPath: 13, maxOpenRing: 1, minProtection: 4, required: {}, forbidden: ['W', 'F', 'I'] },
-  { minPath: 13, maxOpenRing: 2, minProtection: 4, required: { S: 4 }, forbidden: ['W', 'F', 'I'] },
-  { minPath: 13, maxOpenRing: 2, minProtection: 4, required: { W: 2 }, forbidden: ['I'] },
-  { minPath: 13, maxOpenRing: 3, minProtection: 3, required: { F: 2 }, forbidden: ['I'] },
-  { minPath: 13, maxOpenRing: 3, minProtection: 3, required: { I: 2 }, forbidden: [] },
-  { minPath: 13, maxOpenRing: 4, minProtection: 3, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: {}, forbidden: ['W', 'F', 'I'] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: {}, forbidden: ['W', 'F', 'I'] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4 }, forbidden: ['W', 'F', 'I'] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { W: 2 }, forbidden: ['I'] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { F: 2 }, forbidden: ['I'] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
 ];
 
 const failures = [];

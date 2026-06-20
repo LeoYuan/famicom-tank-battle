@@ -360,7 +360,7 @@ const LEVELS_13_DRAFT: string[][] = [
     '.B.B.....B.B.',
     '.B.BB...BB...',
     '.....BBB.....',
-    '.....BE......',
+    '.....BEB.....',
   ],
   [
     '..B..S.S..B..',
@@ -374,7 +374,7 @@ const LEVELS_13_DRAFT: string[][] = [
     '.....BBB.....',
     '.B.S.....S.B.',
     '.B.BB...BB.B.',
-    '.....BBB.....',
+    '.....BSB.....',
     '.....BEB.....',
   ],
   [
@@ -389,8 +389,8 @@ const LEVELS_13_DRAFT: string[][] = [
     '.....BBB.....',
     '.B.S.....S.B.',
     '.B.BB...BB.B.',
-    '.....BBB.....',
-    '.....BE......',
+    '.....BSB.....',
+    '.....BEB.....',
   ],
   [
     '..B..S.S..B..',
@@ -404,8 +404,8 @@ const LEVELS_13_DRAFT: string[][] = [
     '..F..BBB..F..',
     '.B.S.....S.B.',
     '.B.BB...BB.B.',
-    '.....B.B.....',
-    '.....BE......',
+    '.....BBB.....',
+    '.....BEB.....',
   ],
   [
     '..B..S.S..B..',
@@ -419,8 +419,8 @@ const LEVELS_13_DRAFT: string[][] = [
     '..F..B.B..F..',
     '.B.S.....S.B.',
     '.B.B..S.BB...',
-    '.....B.B.....',
-    '.....BE......',
+    '.....BSB.....',
+    '.....SES.....',
   ],
   [
     '..B..S.S..B..',
@@ -434,8 +434,8 @@ const LEVELS_13_DRAFT: string[][] = [
     '..F..B.B..F..',
     '.B.S.....S.B.',
     '.B.B..S.B....',
-    '.....B.B.....',
-    '.....BE......',
+    '.....BSB.....',
+    '.....SES.....',
   ],
 ];
 
@@ -1112,12 +1112,76 @@ function spawnPowerUp(x: number, y: number, type = randomPowerUpType()): void {
 }
 
 function spawnPowerUpAtRandomLocation(type = randomPowerUpType()): void {
-  const spawn = POWER_UP_SPAWN_TILES[Math.floor(Math.random() * POWER_UP_SPAWN_TILES.length)];
+  const reachableSpawns = reachablePowerUpSpawnTiles();
+  const passableSpawns = POWER_UP_SPAWN_TILES.filter((spawn) => isPassableCoarseTile(spawn.x, spawn.y));
+  const candidates = reachableSpawns.length > 0 ? reachableSpawns : passableSpawns;
+  const spawn = candidates[Math.floor(Math.random() * candidates.length)];
   spawnPowerUp(spawn.x * TILE, spawn.y * TILE, type);
 }
 
 function randomPowerUpType(): PowerUpType {
   return POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)];
+}
+
+function reachablePowerUpSpawnTiles(): Array<{ x: number; y: number }> {
+  const start = game.player.alive ? coarseTileForTank(game.player) : PLAYER_RESPAWN_TILE;
+  return POWER_UP_SPAWN_TILES.filter((spawn) => canReachCoarseTile(start, spawn));
+}
+
+function coarseTileForTank(tank: Tank): { x: number; y: number } {
+  return {
+    x: Math.round(tank.x / TILE),
+    y: Math.round(tank.y / TILE),
+  };
+}
+
+function canReachCoarseTile(start: { x: number; y: number }, target: { x: number; y: number }): boolean {
+  if (!isPassableCoarseTile(target.x, target.y)) {
+    return false;
+  }
+
+  const key = (tile: { x: number; y: number }) => `${tile.x},${tile.y}`;
+  const queue = [start];
+  const seen = new Set([key(start)]);
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    if (current.x === target.x && current.y === target.y) {
+      return true;
+    }
+
+    for (const next of [
+      { x: current.x, y: current.y - 1 },
+      { x: current.x + 1, y: current.y },
+      { x: current.x, y: current.y + 1 },
+      { x: current.x - 1, y: current.y },
+    ]) {
+      const nextKey = key(next);
+      if (seen.has(nextKey) || !isPassableCoarseTile(next.x, next.y)) {
+        continue;
+      }
+      seen.add(nextKey);
+      queue.push(next);
+    }
+  }
+
+  return false;
+}
+
+function isPassableCoarseTile(x: number, y: number): boolean {
+  if (x < 0 || y < 0 || x >= BOARD || y >= BOARD) {
+    return false;
+  }
+
+  for (let blockY = y * 2; blockY < y * 2 + 2; blockY += 1) {
+    for (let blockX = x * 2; blockX < x * 2 + 2; blockX += 1) {
+      const tile = game.map[blockY]?.[blockX];
+      if (tile === 'B' || tile === 'S' || tile === 'W' || tile === 'E') {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 function applyPowerUp(powerUp: PowerUp): void {

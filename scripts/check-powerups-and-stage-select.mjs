@@ -3,6 +3,12 @@ import ts from 'typescript';
 import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8').replace("import './styles.css';", '');
+let randomState = 1;
+const seededMath = Object.create(Math);
+seededMath.random = () => {
+  randomState = (randomState * 1664525 + 1013904223) >>> 0;
+  return randomState / 0x100000000;
+};
 
 const instrumented = `${source}
 globalThis.__powerUpTest = {
@@ -10,6 +16,7 @@ globalThis.__powerUpTest = {
   createTank,
   selectTitleStage: typeof selectTitleStage === 'undefined' ? null : selectTitleStage,
   spawnPowerUp: typeof spawnPowerUp === 'undefined' ? null : spawnPowerUp,
+  spawnPowerUpAtRandomLocation: typeof spawnPowerUpAtRandomLocation === 'undefined' ? null : spawnPowerUpAtRandomLocation,
   applyPowerUp: typeof applyPowerUp === 'undefined' ? null : applyPowerUp,
   clearEnemiesWithGrenade: typeof clearEnemiesWithGrenade === 'undefined' ? null : clearEnemiesWithGrenade,
   armorBase: typeof armorBase === 'undefined' ? null : armorBase,
@@ -32,7 +39,7 @@ const { outputText } = ts.transpileModule(instrumented, {
 
 const context = {
   console,
-  Math,
+  Math: seededMath,
   performance: { now: () => 0 },
   requestAnimationFrame: () => 0,
   window: {
@@ -70,7 +77,7 @@ vm.runInContext(outputText, context);
 
 const api = context.__powerUpTest;
 
-for (const name of ['selectTitleStage', 'spawnPowerUp', 'applyPowerUp', 'clearEnemiesWithGrenade', 'armorBase', 'updatePowerUps', 'restoreBaseArmor']) {
+for (const name of ['selectTitleStage', 'spawnPowerUp', 'spawnPowerUpAtRandomLocation', 'applyPowerUp', 'clearEnemiesWithGrenade', 'armorBase', 'updatePowerUps', 'restoreBaseArmor']) {
   if (typeof api[name] !== 'function') {
     console.error(`Expected ${name} to be implemented`);
     process.exit(1);
@@ -79,6 +86,7 @@ for (const name of ['selectTitleStage', 'spawnPowerUp', 'applyPowerUp', 'clearEn
 
 checkStageSelection();
 checkBonusCarrierDropsPowerUp();
+checkRandomPowerUpsSpawnReachably();
 checkPowerUpEffects();
 
 console.log('Power-up and stage-select contracts pass');
@@ -120,6 +128,71 @@ function checkBonusCarrierDropsPowerUp() {
   assertEqual(game.powerUps.length, 1, 'bonus carrier should drop one power-up');
   assert(game.powerUps[0].x >= 0 && game.powerUps[0].x <= 12 * 16, 'power-up x should be inside battlefield');
   assert(game.powerUps[0].y >= 0 && game.powerUps[0].y <= 12 * 16, 'power-up y should be inside battlefield');
+}
+
+function checkRandomPowerUpsSpawnReachably() {
+  for (let stage = 1; stage <= 8; stage += 1) {
+    const game = api.createGame(stage);
+    game.phase = 'playing';
+    api.setGame(game);
+    randomState = stage;
+
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      api.spawnPowerUpAtRandomLocation('timer');
+      const powerUp = game.powerUps[0];
+      const spawnTile = { x: powerUp.x / 16, y: powerUp.y / 16 };
+      assert(
+        canReachCoarseTile(game, { x: 4, y: 12 }, spawnTile),
+        `stage ${stage} random power-up should spawn on a reachable tile, got ${spawnTile.x},${spawnTile.y}`,
+      );
+    }
+  }
+}
+
+function canReachCoarseTile(game, start, target) {
+  if (!isPassableCoarseTile(game, target.x, target.y)) {
+    return false;
+  }
+
+  const key = (tile) => `${tile.x},${tile.y}`;
+  const queue = [start];
+  const seen = new Set([key(start)]);
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    if (current.x === target.x && current.y === target.y) {
+      return true;
+    }
+    for (const [dx, dy] of [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+    ]) {
+      const next = { x: current.x + dx, y: current.y + dy };
+      const nextKey = key(next);
+      if (seen.has(nextKey) || !isPassableCoarseTile(game, next.x, next.y)) {
+        continue;
+      }
+      seen.add(nextKey);
+      queue.push(next);
+    }
+  }
+  return false;
+}
+
+function isPassableCoarseTile(game, x, y) {
+  if (x < 0 || y < 0 || x >= 13 || y >= 13) {
+    return false;
+  }
+  for (let blockY = y * 2; blockY < y * 2 + 2; blockY += 1) {
+    for (let blockX = x * 2; blockX < x * 2 + 2; blockX += 1) {
+      const tile = game.map[blockY]?.[blockX];
+      if (tile === 'B' || tile === 'S' || tile === 'W' || tile === 'E') {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function checkPowerUpEffects() {

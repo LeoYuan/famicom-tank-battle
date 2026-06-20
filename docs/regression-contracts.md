@@ -41,9 +41,10 @@ This document records issues and constraints raised during playtesting so future
 - Stages 1-4 must not allow active enemy spawns to attack the base from spawn through direct or breakable straight lanes.
 - Stage 1 must keep a full brick ring around the base and must not require immediate base camping.
 - Later stages may increase pressure through shorter routes, more exposed base approaches, mixed terrain, and more tactical choices.
+- Dynamic QA must cover all 8 shipped stages with 10 seeded runs each. The scripted runs should reject early enemy base hits, tank overlap, enemy out-of-bounds movement, unexpected enemy spawn tiles, and unreachable power-up spawns.
 - Difficulty must be checked with `npm run check:stages` after every map change.
 - The stage checker must report, at minimum, spawn reachability, route cost to the base perimeter, base-ring exposure, protected base-ring tiles, terrain counts, non-decreasing difficulty score, direct base approach status, and breakable direct base approach status.
-- Do not rely only on the checker. Playtest Stage 1 plus at least one middle and one late stage after map edits.
+- Do not rely only on the checker. Playtest Stage 1 plus at least one middle and one late stage after map edits, and run `node scripts/check-qa-playthroughs.mjs` for the 8x10 seeded dynamic pass.
 
 ## Terrain Rules
 
@@ -108,6 +109,7 @@ This document records issues and constraints raised during playtesting so future
   - `tank`: grants one extra life.
   - `timer`: temporarily freezes enemies.
 - The six 16x16 power-up icons should be semantically readable and original-inspired: grenade, helmet, shovel, star, tank, and timer/clock must not collapse into generic boxes or crosses.
+- Random power-up placement should choose a currently passable and player-reachable candidate tile so the player is not shown an effectively impossible pickup.
 - Power-ups should expire if not collected.
 - Power-up and stage-select behavior is covered by `node scripts/check-powerups-and-stage-select.mjs`.
 - Power-up icon semantics are covered by `node scripts/check-powerup-visuals.mjs`.

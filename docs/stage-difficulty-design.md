@@ -33,33 +33,33 @@ Suggested thresholds for the first 8 stages:
 
 | Stage | Min spawn-to-base path | Base adjacent open tiles | Base protection | Side-lane directness |
 | --- | ---: | ---: | ---: | --- |
-| 1 | High | 0-1 | Full brick ring | No direct side lane |
-| 2 | High | 1 | Full or nearly full brick ring | No direct side lane |
-| 3 | Medium-high | 1-2 | Full ring with one weak side | One delayed side lane |
-| 4 | Medium-high | 2 | Partial ring | One delayed side lane |
-| 5 | Medium | 2 | Partial ring with steel/terrain pressure | One faster side lane |
-| 6 | Medium | 2-3 | Mixed protection | Two side lanes, both interrupted |
-| 7 | Medium-low | 3 | Weaker protection | One near-direct side lane |
-| 8 | Medium-low | 3-4 | Weak but readable protection | High pressure, still not instant base rush |
+| 1 | High | 0 | Full brick ring | No direct side lane |
+| 2 | High | 0 | Full brick ring | No direct side lane |
+| 3 | Medium-high | 0 | Full brick ring | One delayed side lane |
+| 4 | Medium-high | 0 | Full ring with steel anchors | One delayed side lane |
+| 5 | Medium | 0 | Brick ring with steel front stopper | One faster side lane |
+| 6 | Medium | 0 | Brick ring with steel front stopper | Two side lanes, both interrupted |
+| 7 | Medium-low | 0 | Steel front and side stoppers | High pressure without instant base rush |
+| 8 | Medium-low | 0 | Steel front and side stoppers | High pressure without instant base rush |
 
 The checker now uses calibrated numeric values for this 13x13 board. Path values are coarse-tile route costs to the base perimeter. Brick tiles count as high-cost destructible route tiles, while steel, water, and the base are blocked.
 
 | Stage | Minimum route cost | Max open base-ring tiles | Minimum protected base-ring tiles |
 | --- | ---: | ---: | ---: |
 | 1 | 14 | 0 | 5 |
-| 2 | 13 | 1 | 5 |
-| 3 | 13 | 1 | 4 |
-| 4 | 13 | 2 | 4 |
-| 5 | 13 | 2 | 4 |
-| 6 | 13 | 3 | 3 |
-| 7 | 13 | 3 | 3 |
-| 8 | 13 | 4 | 3 |
+| 2 | 13 | 0 | 5 |
+| 3 | 13 | 0 | 5 |
+| 4 | 13 | 0 | 5 |
+| 5 | 13 | 0 | 5 |
+| 6 | 13 | 0 | 5 |
+| 7 | 13 | 0 | 5 |
+| 8 | 13 | 0 | 5 |
 
 The checker also computes a composite difficulty score:
 
 `terrainComplexity + baseAdjacentOpenCount * 4 + max(0, 18 - minSpawnToBasePath)`
 
-The score must not decrease from one stage to the next. This allows Stage 4 to keep stronger base protection while still getting harder through steel placement, and allows later stages to get harder through exposure and terrain rather than only shorter paths.
+The score must not decrease from one stage to the next. Later stages should get harder through terrain complexity, spawn pressure, route branching, and recovery cost rather than by exposing the base to instant or near-instant shots.
 
 ## Terrain Rules
 
@@ -151,7 +151,7 @@ Map goals:
 
 Acceptance:
 - Exactly one side lane is classified as delayed pressure.
-- Base has one weak brick side, but no immediate opening.
+- Base has a complete brick ring, but one side route creates delayed pressure after enemies commit to it.
 - Active enemy spawns cannot shoot open a straight lane to the base front.
 - Terrain is brick only.
 
@@ -190,12 +190,12 @@ Purpose: introduces obscured tank movement and more ambiguous threats.
 
 Map goals:
 - Forest hides parts of one approach.
-- Base has partial protection, not a full ring.
+- Base keeps a full readable ring with a steel front stopper so center pressure does not become an early base shot.
 - Both side lanes exist but include forced turns or destructible gates.
 
 Acceptance:
 - Terrain includes forest.
-- Base adjacent exposure increases, but no direct route starts open.
+- Route ambiguity increases, but no direct route starts open and the base stopper prevents early center shots.
 - Ice is still excluded.
 
 ### Stage 7: Base Pressure
@@ -203,12 +203,11 @@ Acceptance:
 Purpose: high-pressure defensive stage.
 
 Map goals:
-- One route can become a near-direct base route after some brick destruction.
+- One route creates high side pressure after some movement and brick destruction.
 - The player must decide between pushing forward and guarding base.
-- Base protection is weaker but still visible and understandable.
+- Base protection uses visible steel stoppers so the stage is hard without ending from a near-spawn shot.
 
 Acceptance:
-- `baseAdjacentOpenCount` is higher than Stage 6.
 - At least one route reaches the base in the medium-low path band.
 - Terrain includes ice.
 
@@ -219,12 +218,12 @@ Purpose: capstone for the first stage set.
 Map goals:
 - Multiple live routes, one fast and one indirect.
 - More terrain variety than any earlier stage.
-- Base can be pressured from more than one direction, but not instantly from spawn.
+- Base can be pressured from more than one direction, but not instantly from spawn or from the first bottom-side shot.
 - The stage should be hard because the player must prioritize, not because enemies spawn next to the base.
 
 Acceptance:
 - Highest terrain complexity in the first 8 stages.
-- Base exposure is high but still avoids instant side-lane rush.
+- Route and terrain pressure are high while the base still avoids instant side-lane rush.
 - No active spawn has a direct bullet line to the base.
 - All spawns remain reachable and do not trap enemies.
 - Terrain includes steel, water, forest, and ice.
