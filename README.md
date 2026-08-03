@@ -36,8 +36,9 @@ open "release/mac-arm64/Famicom Tank Battle.app"
 
 ## Controls
 
-- `WASD` or arrow keys: move
-- `Space`: fire
+- Title screen: `↑`/`↓` choose 1P/2P, `←`/`→` or `1`-`8` choose stage, `Enter` start
+- 1P: `WASD` or arrow keys to move, `Space` to fire
+- 2P (local co-op): player 1 uses `WASD` + `Space`, player 2 uses arrow keys + right `Shift`
 - `Enter`: start / pause / next stage / retry
 - `R`: restart
 
@@ -45,7 +46,9 @@ open "release/mac-arm64/Famicom Tank Battle.app"
 
 - Protect the base eagle while destroying enemy tanks.
 - The title screen supports stage selection for stages 1-8.
-- 1 player mode is implemented. The 2 players menu item is displayed for original-style presentation, but cooperative 2P gameplay is not implemented yet.
+- Local 2-player co-op is supported: each player has independent lives, score, respawn timing, and power-up effects; the game ends when both players are out or the base falls.
+- Enemies come in four kinds: basic (100 pts), fast (200 pts), power bullets (300 pts), and 4-HP armor (400 pts). Later stages field tougher mixes.
+- Ice tiles make tanks slide: release the keys and the tank keeps gliding briefly.
 - Stage difficulty is designed to ramp across the first 8 stages through route pressure, destructible cover, steel, water, forest, ice, spawn timing, and enemy count.
 
 ## Power-ups

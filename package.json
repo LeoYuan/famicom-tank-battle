@@ -1,6 +1,6 @@
 {
   "name": "famicom-tank-battle",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A Famicom-style tank battle game for browser and macOS app.",
   "main": "electron/main.cjs",
@@ -8,7 +8,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "check:stages": "node scripts/check-stage-difficulty.mjs",
-    "check:regressions": "npm run check:stages && node scripts/check-enemy-ai.mjs && node scripts/check-brick-damage.mjs && node scripts/check-brick-visuals.mjs && node scripts/check-player-shooting.mjs && node scripts/check-overlay-and-base.mjs && node scripts/check-powerups-and-stage-select.mjs && node scripts/check-powerup-visuals.mjs && node scripts/check-qa-playthroughs.mjs && node scripts/check-screen-scale.mjs",
+    "check:regressions": "npm run check:stages && node scripts/check-enemy-ai.mjs && node scripts/check-brick-damage.mjs && node scripts/check-brick-visuals.mjs && node scripts/check-player-shooting.mjs && node scripts/check-overlay-and-base.mjs && node scripts/check-powerups-and-stage-select.mjs && node scripts/check-powerup-visuals.mjs && node scripts/check-qa-playthroughs.mjs && node scripts/check-screen-scale.mjs && node scripts/check-two-player.mjs",
     "compare": "node scripts/compare-screenshots.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "app": "npm run build && electron .",

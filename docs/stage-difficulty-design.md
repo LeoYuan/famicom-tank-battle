@@ -91,7 +91,7 @@ Ice currently affects the player tank speed only. Do not lean on ice as a major 
 For the first 8 stages, keep the enemy mechanics predictable while maps carry most of the difficulty curve:
 
 - Stage 1: two enemy spawn positions, 2.4s initial delay, 3.0s spawn interval, 2 enemies max on field.
-- Stage 2: two enemy spawn positions, 1.8s initial delay, 2.6s spawn interval, 3 enemies max on field.
+- Stage 2: two enemy spawn positions, 2.0s initial delay, 2.6s spawn interval, 3 enemies max on field.
 - Stage 3: two enemy spawn positions, 1.5s initial delay, 2.3s spawn interval, 3 enemies max on field.
 - Stage 4: two enemy spawn positions, 1.3s initial delay, 2.1s spawn interval, 4 enemies max on field.
 - Stage 5: three enemy spawn positions, 1.1s initial delay, 1.9s spawn interval, 4 enemies max on field.
@@ -102,6 +102,17 @@ For the first 8 stages, keep the enemy mechanics predictable while maps carry mo
 These values control spawn pressure, not enemy movement speed. Do not increase enemy movement speed or fire rate before it is explicitly designed and covered by checks. Without metrics, faster enemies can mask bad map design.
 
 Stages 1-4 do not enable the center enemy spawn. This avoids enemies attacking the base from spawn by firing down the center lane. Stage 5 is the first stage that may enable all three enemy spawn positions.
+
+## Enemy Kinds
+
+Enemy variety comes from four kinds with fixed stat profiles (`ENEMY_KIND_STATS`), inspired by the original Battle City:
+
+- `basic` (100 pts): baseline speed and bullets, 1 HP.
+- `fast` (200 pts): ~1.6x movement speed, 1 HP. Introduced from stage 2 so stage 1 stays a pure training stage; fast enemies can reach the base noticeably earlier, which is why stage 1 must remain all-basic to respect the early-base-hit QA thresholds.
+- `power` (300 pts): faster bullets, 1 HP.
+- `armor` (400 pts): 4 HP, body color shifts green -> yellow -> orange -> gray as HP drops.
+
+Each stage declares an `enemyMix` (counts per kind summing to 20). The spawn sequence is a deterministic round-robin expansion (`buildEnemySequence`), so spawn kinds add no RNG and seeded QA runs stay reproducible. Later stages shift the mix toward power/armor to raise pressure without touching map design.
 
 ## Stage Plan
 

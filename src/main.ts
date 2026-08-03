@@ -4,7 +4,9 @@ type Direction = 'up' | 'right' | 'down' | 'left';
 type Block = '.' | 'B' | 'S' | 'W' | 'F' | 'I' | 'E';
 type Phase = 'title' | 'stageIntro' | 'playing' | 'paused' | 'won' | 'gameover';
 type Side = 'player' | 'enemy';
+type GameMode = '1p' | '2p';
 type PowerUpType = 'grenade' | 'helmet' | 'shovel' | 'star' | 'tank' | 'timer';
+type EnemyKind = 'basic' | 'fast' | 'power' | 'armor';
 
 interface Rect {
   x: number;
@@ -16,6 +18,9 @@ interface Rect {
 interface Tank {
   id: number;
   side: Side;
+  kind: EnemyKind;
+  hp: number;
+  scoreValue: number;
   x: number;
   y: number;
   dir: Direction;
@@ -24,6 +29,8 @@ interface Tank {
   accent: string;
   cooldown: number;
   moveCarry: number;
+  slideSpeed: number;
+  powerLevel: number;
   aiTimer: number;
   alive: boolean;
   spawnShield: number;
@@ -48,6 +55,22 @@ interface Explosion {
   size: number;
 }
 
+interface ScorePopup {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  age: number;
+  duration: number;
+}
+
+interface SpawnEffect {
+  x: number;
+  y: number;
+  age: number;
+  duration: number;
+}
+
 interface PowerUp {
   type: PowerUpType;
   x: number;
@@ -68,6 +91,7 @@ interface StageTuning {
   enemySpawnInterval: number;
   blockedSpawnRetryDelay: number;
   maxEnemiesOnField: number;
+  enemyMix: Record<EnemyKind, number>;
 }
 
 interface GameState {
@@ -80,15 +104,24 @@ interface GameState {
   nextTankId: number;
   map: Block[][];
   player: Tank;
+  player2: Tank | null;
+  lives2: number;
+  score2: number;
+  player2RespawnTimer: number;
+  mode: GameMode;
+  menuIndex: number;
   enemies: Tank[];
   bullets: Bullet[];
   explosions: Explosion[];
+  popups: ScorePopup[];
+  spawnEffects: SpawnEffect[];
   powerUps: PowerUp[];
   enemyFreezeTimer: number;
   baseArmorTimer: number;
   baseArmorSnapshot: TileSnapshot[];
   playerPowerLevel: number;
   enemiesSpawned: number;
+  playerRespawnTimer: number;
   messageBlink: number;
   stageIntroTimer: number;
 }
@@ -132,6 +165,7 @@ const POWER_UP_SPAWN_TILES = [
   { x: 10, y: 11 },
 ];
 const PLAYER_RESPAWN_TILE = { x: 4, y: 12 };
+const PLAYER2_RESPAWN_TILE = { x: 8, y: 12 };
 
 updateScreenScale();
 window.addEventListener('resize', updateScreenScale);
@@ -173,16 +207,18 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 3.0,
     blockedSpawnRetryDelay: 0.8,
     maxEnemiesOnField: 2,
+    enemyMix: { basic: 20, fast: 0, power: 0, armor: 0 },
   },
   {
     enemySpawnTiles: [
       { x: 0, y: 0 },
       { x: 12, y: 0 },
     ],
-    initialEnemySpawnDelay: 1.8,
+    initialEnemySpawnDelay: 2.0,
     enemySpawnInterval: 2.6,
     blockedSpawnRetryDelay: 0.7,
     maxEnemiesOnField: 3,
+    enemyMix: { basic: 14, fast: 4, power: 2, armor: 0 },
   },
   {
     enemySpawnTiles: [
@@ -193,6 +229,7 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 2.3,
     blockedSpawnRetryDelay: 0.6,
     maxEnemiesOnField: 3,
+    enemyMix: { basic: 12, fast: 4, power: 2, armor: 2 },
   },
   {
     enemySpawnTiles: [
@@ -203,6 +240,7 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 2.1,
     blockedSpawnRetryDelay: 0.55,
     maxEnemiesOnField: 4,
+    enemyMix: { basic: 10, fast: 4, power: 3, armor: 3 },
   },
   {
     enemySpawnTiles: [
@@ -214,6 +252,7 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 1.9,
     blockedSpawnRetryDelay: 0.5,
     maxEnemiesOnField: 4,
+    enemyMix: { basic: 8, fast: 4, power: 4, armor: 4 },
   },
   {
     enemySpawnTiles: [
@@ -225,6 +264,7 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 1.8,
     blockedSpawnRetryDelay: 0.45,
     maxEnemiesOnField: 4,
+    enemyMix: { basic: 6, fast: 4, power: 5, armor: 5 },
   },
   {
     enemySpawnTiles: [
@@ -236,6 +276,7 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 1.65,
     blockedSpawnRetryDelay: 0.4,
     maxEnemiesOnField: 4,
+    enemyMix: { basic: 4, fast: 5, power: 5, armor: 6 },
   },
   {
     enemySpawnTiles: [
@@ -247,8 +288,48 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 1.55,
     blockedSpawnRetryDelay: 0.4,
     maxEnemiesOnField: 4,
+    enemyMix: { basic: 2, fast: 6, power: 6, armor: 6 },
   },
 ];
+
+const ENEMY_KIND_STATS: Record<
+  EnemyKind,
+  { speed: number; hp: number; score: number; bulletSpeed: number; color: string; accent: string }
+> = {
+  basic: { speed: 34, hp: 1, score: 100, bulletSpeed: 120, color: '#8fa8a2', accent: '#d04f3f' },
+  fast: { speed: 56, hp: 1, score: 200, bulletSpeed: 120, color: '#d8e0e0', accent: '#d04f3f' },
+  power: { speed: 34, hp: 1, score: 300, bulletSpeed: 180, color: '#a8b0d0', accent: '#f0f0f0' },
+  armor: { speed: 34, hp: 4, score: 400, bulletSpeed: 120, color: '#68b868', accent: '#285828' },
+};
+
+const ARMOR_HP_COLORS: Record<number, string> = {
+  4: '#68b868',
+  3: '#b8c848',
+  2: '#d8a838',
+  1: '#d8d8d8',
+};
+
+function buildEnemySequence(mix: Record<EnemyKind, number>): EnemyKind[] {
+  const remaining: Record<EnemyKind, number> = { ...mix };
+  const sequence: EnemyKind[] = [];
+  const kinds: EnemyKind[] = ['armor', 'power', 'fast', 'basic'];
+
+  while (sequence.length < ENEMIES_PER_STAGE) {
+    for (const kind of kinds) {
+      if (remaining[kind] > 0 && sequence.length < ENEMIES_PER_STAGE) {
+        sequence.push(kind);
+        remaining[kind] -= 1;
+      }
+    }
+    if (kinds.every((kind) => remaining[kind] <= 0)) {
+      break;
+    }
+  }
+
+  return sequence;
+}
+
+const STAGE_ENEMY_SEQUENCES: EnemyKind[][] = STAGE_TUNING.map((tuning) => buildEnemySequence(tuning.enemyMix));
 
 const INPUT_DIRECTIONS: Record<string, Direction> = {
   ArrowUp: 'up',
@@ -260,6 +341,22 @@ const INPUT_DIRECTIONS: Record<string, Direction> = {
   ArrowLeft: 'left',
   KeyA: 'left',
 };
+
+const P1_DIRECTION_KEYS: Record<string, Direction> = {
+  KeyW: 'up',
+  KeyD: 'right',
+  KeyS: 'down',
+  KeyA: 'left',
+};
+
+const P2_DIRECTION_KEYS: Record<string, Direction> = {
+  ArrowUp: 'up',
+  ArrowRight: 'right',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+};
+
+const P2_FIRE_KEY = 'ShiftRight';
 
 const PIXEL_FONT: Record<string, string[]> = {
   ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
@@ -404,7 +501,7 @@ const LEVELS_13_DRAFT: string[][] = [
     '..F..BBB..F..',
     '.B.S.....S.B.',
     '.B.BB...BB.B.',
-    '.....BBB.....',
+    '.....BSB.....',
     '.....BEB.....',
   ],
   [
@@ -446,6 +543,8 @@ let lastFrame = performance.now();
 ctx.imageSmoothingEnabled = false;
 
 window.addEventListener('keydown', (event) => {
+  ensureAudio();
+
   if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Space'].includes(event.code)) {
     event.preventDefault();
   }
@@ -458,6 +557,14 @@ window.addEventListener('keydown', (event) => {
       if (event.code === 'ArrowRight' || event.code === 'KeyD') {
         selectTitleStage(1);
       }
+      if (
+        event.code === 'ArrowUp' ||
+        event.code === 'ArrowDown' ||
+        event.code === 'KeyW' ||
+        event.code === 'KeyS'
+      ) {
+        game.menuIndex = game.menuIndex === 0 ? 1 : 0;
+      }
       if (/^Digit[1-8]$/.test(event.code)) {
         selectAbsoluteTitleStage(Number(event.code.slice(5)));
       }
@@ -466,16 +573,26 @@ window.addEventListener('keydown', (event) => {
       handleStartPause();
     }
     if (event.code === 'KeyR') {
-      game = createGame(1);
+      game = createGame(1, game.mode);
       startStageIntro();
     }
   }
 
+  if (INPUT_DIRECTIONS[event.code]) {
+    keys.delete(event.code);
+  }
   keys.add(event.code);
 });
 
 window.addEventListener('keyup', (event) => {
   keys.delete(event.code);
+});
+
+window.addEventListener('blur', () => {
+  keys.clear();
+  if (game.phase === 'playing') {
+    game.phase = 'paused';
+  }
 });
 
 requestAnimationFrame(loop);
@@ -496,10 +613,17 @@ function getCanvasContext(element: HTMLCanvasElement): CanvasRenderingContext2D 
   return context;
 }
 
-function createGame(stage: number): GameState {
+function createGame(stage: number, mode: GameMode = '1p'): GameState {
   const map = parseLevel(LEVELS_13_DRAFT[(stage - 1) % LEVELS_13_DRAFT.length]);
   const tuning = getStageTuning(stage);
-  const player = createTank('player', 4, 12, 'up', '#ffd84a', '#fff2a3');
+  const player = createTank('player', PLAYER_RESPAWN_TILE.x, PLAYER_RESPAWN_TILE.y, 'up', '#ffd84a', '#fff2a3');
+  const player2 =
+    mode === '2p'
+      ? createTank('player', PLAYER2_RESPAWN_TILE.x, PLAYER2_RESPAWN_TILE.y, 'up', '#6fc858', '#d0f0b8')
+      : null;
+  if (player2) {
+    player2.id = -1;
+  }
 
   return {
     phase: 'title',
@@ -511,15 +635,24 @@ function createGame(stage: number): GameState {
     nextTankId: 2,
     map,
     player,
+    player2,
+    lives2: mode === '2p' ? 3 : 0,
+    score2: 0,
+    player2RespawnTimer: 0,
+    mode,
+    menuIndex: mode === '2p' ? 1 : 0,
     enemies: [],
     bullets: [],
     explosions: [],
+    popups: [],
+    spawnEffects: [],
     powerUps: [],
     enemyFreezeTimer: 0,
     baseArmorTimer: 0,
     baseArmorSnapshot: [],
     playerPowerLevel: 1,
     enemiesSpawned: 0,
+    playerRespawnTimer: 0,
     messageBlink: 0,
     stageIntroTimer: 0,
   };
@@ -594,8 +727,11 @@ function createTank(
 ): Tank {
   const offset = (TILE - TANK) / 2;
   return {
-    id: side === 'player' ? 1 : Math.floor(Math.random() * 1000000),
+    id: side === 'player' ? 1 : 0,
     side,
+    kind: 'basic',
+    hp: 1,
+    scoreValue: 100,
     x: tileX * TILE + offset,
     y: tileY * TILE + offset,
     dir,
@@ -604,6 +740,8 @@ function createTank(
     accent,
     cooldown: 0.12,
     moveCarry: 0,
+    slideSpeed: 0,
+    powerLevel: 1,
     aiTimer: 0,
     alive: true,
     spawnShield: side === 'player' ? 1.6 : 0.8,
@@ -613,6 +751,9 @@ function createTank(
 
 function handleStartPause(): void {
   if (game.phase === 'title') {
+    if (game.menuIndex === 1 && game.mode !== '2p') {
+      game = createGame(game.stage, '2p');
+    }
     startStageIntro();
     return;
   }
@@ -625,15 +766,17 @@ function handleStartPause(): void {
     return;
   }
   if (game.phase === 'won') {
-    const next = createGame(game.stage + 1);
+    const next = createGame(game.stage + 1, game.mode);
     next.score = game.score;
     next.lives = game.lives;
+    next.score2 = game.score2;
+    next.lives2 = game.lives2;
     game = next;
     startStageIntro();
     return;
   }
   if (game.phase === 'gameover') {
-    game = createGame(1);
+    game = createGame(1, game.mode);
     startStageIntro();
   }
 }
@@ -656,9 +799,10 @@ function loop(time: number): void {
     }
   } else {
     game.messageBlink += dt;
-    updateExplosions(dt);
+    updateEffects(dt);
   }
 
+  syncBgm();
   draw();
   requestAnimationFrame(loop);
 }
@@ -667,35 +811,77 @@ function update(dt: number): void {
   game.messageBlink += dt;
   updatePowerUps(dt);
   updatePlayer(dt);
+  updatePlayerRespawn(dt);
   updateEnemies(dt);
   updateBullets(dt);
-  updateExplosions(dt);
+  updateEffects(dt);
   spawnEnemies(dt);
   checkWin();
 }
 
-function updatePlayer(dt: number): void {
-  if (!game.player.alive) {
-    return;
+function updatePlayerRespawn(dt: number): void {
+  if (!game.player.alive && game.playerRespawnTimer > 0) {
+    game.playerRespawnTimer -= dt;
+    if (game.playerRespawnTimer <= 0) {
+      game.playerRespawnTimer = 0;
+      respawnPlayer();
+    }
   }
 
-  game.player.cooldown = Math.max(0, game.player.cooldown - dt);
-  game.player.spawnShield = Math.max(0, game.player.spawnShield - dt);
-
-  const nextDirection = getInputDirection();
-  if (nextDirection) {
-    moveTank(game.player, nextDirection, dt);
-  }
-
-  if (keys.has('Space')) {
-    tryShoot(game.player);
+  if (game.player2 && !game.player2.alive && game.player2RespawnTimer > 0) {
+    game.player2RespawnTimer -= dt;
+    if (game.player2RespawnTimer <= 0) {
+      game.player2RespawnTimer = 0;
+      respawnPlayer2();
+    }
   }
 }
 
-function getInputDirection(): Direction | null {
-  const order = ['ArrowUp', 'KeyW', 'ArrowRight', 'KeyD', 'ArrowDown', 'KeyS', 'ArrowLeft', 'KeyA'];
-  const code = order.find((key) => keys.has(key));
-  return code ? INPUT_DIRECTIONS[code] : null;
+function updatePlayer(dt: number): void {
+  updatePlayerTank(game.player, game.mode === '2p' ? P1_DIRECTION_KEYS : INPUT_DIRECTIONS, 'Space', dt);
+  if (game.player2) {
+    updatePlayerTank(game.player2, P2_DIRECTION_KEYS, P2_FIRE_KEY, dt);
+  }
+}
+
+function updatePlayerTank(
+  player: Tank,
+  directionKeys: Record<string, Direction>,
+  fireKey: string,
+  dt: number,
+): void {
+  if (!player.alive) {
+    return;
+  }
+
+  player.cooldown = Math.max(0, player.cooldown - dt);
+  player.spawnShield = Math.max(0, player.spawnShield - dt);
+
+  const nextDirection = getDirectionFromKeys(directionKeys);
+  if (nextDirection) {
+    moveTank(player, nextDirection, dt);
+    player.slideSpeed = isTankOnIce(player) ? player.speed * 1.22 : 0;
+  } else if (player.slideSpeed > 0) {
+    const onIce = isTankOnIce(player);
+    const moved = moveTank(player, player.dir, dt, player.slideSpeed);
+    const decay = onIce ? 90 : 260;
+    player.slideSpeed = moved ? Math.max(0, player.slideSpeed - decay * dt) : 0;
+  }
+
+  if (keys.has(fireKey)) {
+    tryShoot(player);
+  }
+}
+
+function getDirectionFromKeys(directionKeys: Record<string, Direction>): Direction | null {
+  const held = Array.from(keys);
+  for (let index = held.length - 1; index >= 0; index -= 1) {
+    const direction = directionKeys[held[index]];
+    if (direction) {
+      return direction;
+    }
+  }
+  return null;
 }
 
 function updateEnemies(dt: number): void {
@@ -747,12 +933,13 @@ function pickEnemyDirection(enemy: Tank, forceDifferent = false): Direction {
   const forwardChoices = choices.filter((choice) => choice !== OPPOSITE[enemy.dir]);
   const turnChoices = forwardChoices.length > 0 ? forwardChoices : choices;
   const weighted = [...turnChoices];
-  const verticalChase = enemy.y > game.player.y ? 'up' : 'down';
-  const horizontalChase = enemy.x > game.player.x ? 'left' : 'right';
-  if (Math.abs(enemy.x - game.player.x) < TILE * 1.2 && turnChoices.includes(verticalChase)) {
+  const target = nearestAlivePlayer(enemy);
+  const verticalChase = enemy.y > target.y ? 'up' : 'down';
+  const horizontalChase = enemy.x > target.x ? 'left' : 'right';
+  if (Math.abs(enemy.x - target.x) < TILE * 1.2 && turnChoices.includes(verticalChase)) {
     weighted.push(verticalChase);
   }
-  if (Math.abs(enemy.y - game.player.y) < TILE * 1.2 && turnChoices.includes(horizontalChase)) {
+  if (Math.abs(enemy.y - target.y) < TILE * 1.2 && turnChoices.includes(horizontalChase)) {
     weighted.push(horizontalChase);
   }
   if (turnChoices.includes('down')) {
@@ -760,6 +947,20 @@ function pickEnemyDirection(enemy: Tank, forceDifferent = false): Direction {
   }
 
   return weighted[Math.floor(Math.random() * weighted.length)];
+}
+
+function nearestAlivePlayer(enemy: Tank): Tank {
+  const players = alivePlayers();
+  if (players.length === 0) {
+    return game.player;
+  }
+
+  return players.reduce((nearest, player) =>
+    Math.abs(player.x - enemy.x) + Math.abs(player.y - enemy.y) <
+    Math.abs(nearest.x - enemy.x) + Math.abs(nearest.y - enemy.y)
+      ? player
+      : nearest,
+  );
 }
 
 function canTankMoveOneStep(tank: Tank, dir: Direction): boolean {
@@ -774,7 +975,7 @@ function canTankMoveOneStep(tank: Tank, dir: Direction): boolean {
   return canTankOccupy(nextRect, tank);
 }
 
-function moveTank(tank: Tank, dir: Direction, dt: number): boolean {
+function moveTank(tank: Tank, dir: Direction, dt: number, speedOverride?: number): boolean {
   if (tank.dir !== dir) {
     tank.moveCarry = 0;
   }
@@ -782,8 +983,9 @@ function moveTank(tank: Tank, dir: Direction, dt: number): boolean {
   snapToLane(tank, dir);
 
   const vector = DIRS[dir];
-  const speedBoost = tank.side === 'player' && isTankOnIce(tank) ? 1.22 : 1;
-  tank.moveCarry += tank.speed * speedBoost * dt;
+  const speedBoost =
+    speedOverride === undefined && tank.side === 'player' && isTankOnIce(tank) ? 1.22 : 1;
+  tank.moveCarry += (speedOverride ?? tank.speed) * speedBoost * dt;
   const steps = Math.floor(tank.moveCarry);
   tank.moveCarry -= steps;
 
@@ -813,14 +1015,28 @@ function snapToLane(tank: Tank, dir: Direction): void {
   if (dir === 'up' || dir === 'down') {
     const lane = Math.round((centerX - TILE / 2) / TILE) * TILE + TILE / 2;
     if (Math.abs(lane - centerX) <= 4) {
-      tank.x = lane - TANK / 2;
+      const snappedX = lane - TANK / 2;
+      if (snappedX !== tank.x && canTankOccupy({ ...tankRect(tank), x: snappedX }, tank)) {
+        tank.x = snappedX;
+      }
     }
   } else {
     const lane = Math.round((centerY - TILE / 2) / TILE) * TILE + TILE / 2;
     if (Math.abs(lane - centerY) <= 4) {
-      tank.y = lane - TANK / 2;
+      const snappedY = lane - TANK / 2;
+      if (snappedY !== tank.y && canTankOccupy({ ...tankRect(tank), y: snappedY }, tank)) {
+        tank.y = snappedY;
+      }
     }
   }
+}
+
+function allPlayers(): Tank[] {
+  return game.player2 ? [game.player, game.player2] : [game.player];
+}
+
+function alivePlayers(): Tank[] {
+  return allPlayers().filter((player) => player.alive);
 }
 
 function canTankOccupy(rect: Rect, tank: Tank): boolean {
@@ -835,7 +1051,7 @@ function canTankOccupy(rect: Rect, tank: Tank): boolean {
     }
   }
 
-  const tanks = [game.player, ...game.enemies];
+  const tanks = [...allPlayers(), ...game.enemies];
   return !tanks.some((other) => other !== tank && other.alive && intersects(rect, tankRect(other)));
 }
 
@@ -850,7 +1066,7 @@ function tryShoot(tank: Tank): void {
     return;
   }
 
-  if (tank.side === 'player' && game.bullets.some((bullet) => bullet.side === 'player' && bullet.alive)) {
+  if (tank.side === 'player' && game.bullets.some((bullet) => bullet.ownerId === tank.id && bullet.alive)) {
     return;
   }
 
@@ -865,12 +1081,13 @@ function tryShoot(tank: Tank): void {
     x: muzzle.x,
     y: muzzle.y,
     dir: tank.dir,
-    speed: tank.side === 'player' ? (game.playerPowerLevel >= 2 ? 170 : 148) : 120,
+    speed: tank.side === 'player' ? (tank.powerLevel >= 2 ? 170 : 148) : ENEMY_KIND_STATS[tank.kind].bulletSpeed,
     alive: true,
     ownerId: tank.id,
   });
 
-  tank.cooldown = tank.side === 'player' ? (game.playerPowerLevel >= 2 ? 0.26 : 0.34) : 0.85 + Math.random() * 0.55;
+  tank.cooldown = tank.side === 'player' ? (tank.powerLevel >= 2 ? 0.26 : 0.34) : 0.85 + Math.random() * 0.55;
+  playSfx('shoot');
 }
 
 function updateBullets(dt: number): void {
@@ -933,10 +1150,14 @@ function hitTile(bullet: Bullet): boolean {
 
     if (tile === 'B') {
       damageBrickLine(x, y, bullet.dir);
+      playSfx('hitBrick');
+    } else if (tile === 'S') {
+      playSfx('hitSteel');
     }
     if (tile === 'E') {
       destroyBase(x, y);
       game.phase = 'gameover';
+      playSfx('baseBoom');
       addExplosion(Math.floor(x / 2) * TILE + TILE / 2, Math.floor(y / 2) * TILE + TILE / 2, 24);
     }
 
@@ -1007,7 +1228,7 @@ function hitBullet(bullet: Bullet): void {
 }
 
 function hitTank(bullet: Bullet): void {
-  const targets = bullet.side === 'player' ? game.enemies : [game.player];
+  const targets = bullet.side === 'player' ? game.enemies : allPlayers();
   for (const tank of targets) {
     if (!tank.alive || tank.spawnShield > 0 || tank.id === bullet.ownerId) {
       continue;
@@ -1017,6 +1238,14 @@ function hitTank(bullet: Bullet): void {
     }
 
     bullet.alive = false;
+
+    if (tank.side === 'enemy' && tank.hp > 1) {
+      tank.hp -= 1;
+      addExplosion(tank.x + TANK / 2, tank.y + TANK / 2, 10);
+      playSfx('hitSteel');
+      return;
+    }
+
     tank.alive = false;
     addExplosion(tank.x + TANK / 2, tank.y + TANK / 2, 20);
 
@@ -1024,18 +1253,29 @@ function hitTank(bullet: Bullet): void {
       if (tank.bonusCarrier) {
         spawnPowerUpAtRandomLocation();
       }
-      game.score += 100;
+      if (game.player2 && bullet.ownerId === game.player2.id) {
+        game.score2 += tank.scoreValue;
+      } else {
+        game.score += tank.scoreValue;
+      }
+      addScorePopup(tank.x + TANK / 2, tank.y - 2, String(tank.scoreValue), '#f8f8f8');
+      playSfx('boom');
       game.enemies = game.enemies.filter((enemy) => enemy.alive);
     } else {
-      game.lives -= 1;
-      if (game.lives <= 0) {
-        game.phase = 'gameover';
+      if (tank === game.player) {
+        game.lives -= 1;
+        if (game.lives > 0) {
+          game.playerRespawnTimer = 0.9;
+        }
       } else {
-        window.setTimeout(() => {
-          if (game.phase === 'playing') {
-            respawnPlayer();
-          }
-        }, 900);
+        game.lives2 -= 1;
+        if (game.lives2 > 0) {
+          game.player2RespawnTimer = 0.9;
+        }
+      }
+      playSfx('boom');
+      if (game.lives <= 0 && (game.mode !== '2p' || game.lives2 <= 0)) {
+        game.phase = 'gameover';
       }
     }
     return;
@@ -1043,7 +1283,6 @@ function hitTank(bullet: Bullet): void {
 }
 
 function respawnPlayer(): void {
-  game.player.alive = false;
   const nextPlayer = createTank(
     'player',
     PLAYER_RESPAWN_TILE.x,
@@ -1052,8 +1291,30 @@ function respawnPlayer(): void {
     '#ffd84a',
     '#fff2a3',
   );
+  nextPlayer.powerLevel = game.playerPowerLevel;
   clearEnemiesFromPlayerRespawn(nextPlayer);
   game.player = nextPlayer;
+  addSpawnEffect(nextPlayer.x, nextPlayer.y);
+}
+
+function respawnPlayer2(): void {
+  if (!game.player2) {
+    return;
+  }
+
+  const nextPlayer = createTank(
+    'player',
+    PLAYER2_RESPAWN_TILE.x,
+    PLAYER2_RESPAWN_TILE.y,
+    'up',
+    '#6fc858',
+    '#d0f0b8',
+  );
+  nextPlayer.id = -1;
+  nextPlayer.powerLevel = game.player2.powerLevel;
+  clearEnemiesFromPlayerRespawn(nextPlayer);
+  game.player2 = nextPlayer;
+  addSpawnEffect(nextPlayer.x, nextPlayer.y);
 }
 
 function clearEnemiesFromPlayerRespawn(player: Tank): void {
@@ -1079,6 +1340,28 @@ function updateExplosions(dt: number): void {
   game.explosions = game.explosions.filter((explosion) => explosion.age < explosion.duration);
 }
 
+function updateEffects(dt: number): void {
+  updateExplosions(dt);
+
+  for (const popup of game.popups) {
+    popup.age += dt;
+  }
+  game.popups = game.popups.filter((popup) => popup.age < popup.duration);
+
+  for (const effect of game.spawnEffects) {
+    effect.age += dt;
+  }
+  game.spawnEffects = game.spawnEffects.filter((effect) => effect.age < effect.duration);
+}
+
+function addScorePopup(x: number, y: number, text: string, color: string): void {
+  game.popups.push({ x, y, text, color, age: 0, duration: 0.9 });
+}
+
+function addSpawnEffect(x: number, y: number): void {
+  game.spawnEffects.push({ x, y, age: 0, duration: 0.5 });
+}
+
 function updatePowerUps(dt: number): void {
   game.enemyFreezeTimer = Math.max(0, game.enemyFreezeTimer - dt);
   if (game.baseArmorTimer > 0) {
@@ -1090,8 +1373,9 @@ function updatePowerUps(dt: number): void {
 
   for (const powerUp of game.powerUps) {
     powerUp.age += dt;
-    if (game.player.alive && intersects(powerUpRect(powerUp), tankRect(game.player))) {
-      applyPowerUp(powerUp);
+    const recipient = alivePlayers().find((player) => intersects(powerUpRect(powerUp), tankRect(player)));
+    if (recipient) {
+      applyPowerUp(powerUp, recipient);
       powerUp.age = powerUp.duration;
     }
   }
@@ -1184,27 +1468,48 @@ function isPassableCoarseTile(x: number, y: number): boolean {
   return true;
 }
 
-function applyPowerUp(powerUp: PowerUp): void {
+function applyPowerUp(powerUp: PowerUp, recipient: Tank = game.player): void {
+  if (recipient === game.player) {
+    game.score += 500;
+  } else {
+    game.score2 += 500;
+  }
+  addScorePopup(powerUp.x + TILE / 2, powerUp.y - 2, '500', '#f7d451');
+  playSfx('pickup');
+
   if (powerUp.type === 'grenade') {
-    clearEnemiesWithGrenade();
+    clearEnemiesWithGrenade(recipient);
   } else if (powerUp.type === 'helmet') {
-    game.player.spawnShield = Math.max(game.player.spawnShield, 8);
+    recipient.spawnShield = Math.max(recipient.spawnShield, 8);
   } else if (powerUp.type === 'shovel') {
     armorBase(12);
   } else if (powerUp.type === 'star') {
-    game.playerPowerLevel = Math.min(3, game.playerPowerLevel + 1);
+    recipient.powerLevel = Math.min(3, recipient.powerLevel + 1);
+    if (recipient === game.player) {
+      game.playerPowerLevel = recipient.powerLevel;
+    }
   } else if (powerUp.type === 'tank') {
-    game.lives += 1;
+    if (recipient === game.player) {
+      game.lives += 1;
+    } else {
+      game.lives2 += 1;
+    }
   } else if (powerUp.type === 'timer') {
     game.enemyFreezeTimer = Math.max(game.enemyFreezeTimer, 6);
   }
 }
 
-function clearEnemiesWithGrenade(): void {
+function clearEnemiesWithGrenade(scorer: Tank): void {
   for (const enemy of game.enemies) {
     addExplosion(enemy.x + TANK / 2, enemy.y + TANK / 2, 20);
   }
-  game.score += game.enemies.length * 100;
+  playSfx('boom');
+  const total = game.enemies.reduce((sum, enemy) => sum + enemy.scoreValue, 0);
+  if (scorer === game.player) {
+    game.score += total;
+  } else {
+    game.score2 += total;
+  }
   game.enemies = [];
 }
 
@@ -1282,6 +1587,16 @@ function spawnEnemies(dt: number): void {
   game.enemiesSpawned += 1;
   enemy.bonusCarrier = BONUS_ENEMY_SPAWN_NUMBERS.has(game.enemiesSpawned);
 
+  const sequence = STAGE_ENEMY_SEQUENCES[(game.stage - 1) % STAGE_ENEMY_SEQUENCES.length];
+  const kind = sequence[(ENEMIES_PER_STAGE - game.enemyReserve) % sequence.length];
+  const stats = ENEMY_KIND_STATS[kind];
+  enemy.kind = kind;
+  enemy.hp = stats.hp;
+  enemy.scoreValue = stats.score;
+  enemy.speed = stats.speed;
+  enemy.color = stats.color;
+  enemy.accent = stats.accent;
+
   if (!canTankOccupy(tankRect(enemy), enemy)) {
     game.enemySpawnTimer = tuning.blockedSpawnRetryDelay;
     return;
@@ -1290,7 +1605,7 @@ function spawnEnemies(dt: number): void {
   game.enemies.push(enemy);
   game.enemyReserve -= 1;
   game.enemySpawnTimer = tuning.enemySpawnInterval;
-  addExplosion(enemy.x + TANK / 2, enemy.y + TANK / 2, 14);
+  addSpawnEffect(enemy.x, enemy.y);
 }
 
 function checkWin(): void {
@@ -1335,6 +1650,154 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+type SfxKind = 'shoot' | 'hitBrick' | 'hitSteel' | 'boom' | 'pickup' | 'baseBoom';
+
+let audioContext: AudioContext | null = null;
+let noiseBuffer: AudioBuffer | null = null;
+
+function ensureAudio(): void {
+  if (typeof AudioContext === 'undefined') {
+    return;
+  }
+
+  if (audioContext) {
+    if (audioContext.state === 'suspended') {
+      void audioContext.resume();
+    }
+    return;
+  }
+
+  audioContext = new AudioContext();
+  const length = audioContext.sampleRate;
+  noiseBuffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < length; i += 1) {
+    data[i] = Math.random() * 2 - 1;
+  }
+}
+
+function playSfx(kind: SfxKind): void {
+  if (!audioContext || audioContext.state !== 'running') {
+    return;
+  }
+
+  const now = audioContext.currentTime;
+  if (kind === 'shoot') {
+    playTone(880, 220, 0.07, 'square', 0.06, now);
+  } else if (kind === 'hitBrick') {
+    playNoise(0.09, 1800, 0.12, now);
+  } else if (kind === 'hitSteel') {
+    playTone(1400, 1400, 0.05, 'square', 0.05, now);
+  } else if (kind === 'boom') {
+    playNoise(0.32, 500, 0.22, now);
+  } else if (kind === 'baseBoom') {
+    playNoise(0.8, 300, 0.3, now);
+  } else if (kind === 'pickup') {
+    playTone(660, 660, 0.07, 'square', 0.08, now);
+    playTone(990, 990, 0.09, 'square', 0.08, now + 0.08);
+  }
+}
+
+function playTone(
+  startFrequency: number,
+  endFrequency: number,
+  duration: number,
+  type: OscillatorType,
+  volume: number,
+  startTime: number,
+): void {
+  if (!audioContext) {
+    return;
+  }
+
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(startFrequency, startTime);
+  oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), startTime + duration);
+  gain.gain.setValueAtTime(volume, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration);
+}
+
+function playNoise(duration: number, cutoff: number, volume: number, startTime: number): void {
+  if (!audioContext || !noiseBuffer) {
+    return;
+  }
+
+  const source = audioContext.createBufferSource();
+  const filter = audioContext.createBiquadFilter();
+  const gain = audioContext.createGain();
+  source.buffer = noiseBuffer;
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(cutoff, startTime);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(40, cutoff / 6), startTime + duration);
+  gain.gain.setValueAtTime(volume, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioContext.destination);
+  source.start(startTime, Math.random());
+  source.stop(startTime + duration);
+}
+
+type BgmTrackName = 'title' | 'battle';
+
+const BGM_TRACKS: Record<BgmTrackName, { stepDuration: number; wave: OscillatorType; volume: number; notes: number[] }> = {
+  title: {
+    stepDuration: 0.21,
+    wave: 'square',
+    volume: 0.035,
+    notes: [330, 392, 494, 392, 440, 523, 494, 392, 330, 392, 494, 587, 494, 392, 330, 0],
+  },
+  battle: {
+    stepDuration: 0.13,
+    wave: 'triangle',
+    volume: 0.05,
+    notes: [82, 82, 165, 82, 98, 98, 196, 98, 110, 110, 220, 110, 98, 110, 123, 82],
+  },
+};
+
+let bgmTrack: BgmTrackName | null = null;
+let bgmStep = 0;
+let bgmNextTime = 0;
+
+function syncBgm(): void {
+  const target: BgmTrackName | null =
+    game.phase === 'title'
+      ? 'title'
+      : game.phase === 'playing' || game.phase === 'stageIntro' || game.phase === 'paused'
+        ? 'battle'
+        : null;
+
+  if (target !== bgmTrack) {
+    bgmTrack = target;
+    bgmStep = 0;
+    bgmNextTime = 0;
+  }
+
+  if (!bgmTrack || !audioContext || audioContext.state !== 'running') {
+    return;
+  }
+
+  const track = BGM_TRACKS[bgmTrack];
+  const now = audioContext.currentTime;
+  if (bgmNextTime < now) {
+    bgmNextTime = now + 0.05;
+  }
+  while (bgmNextTime < now + 0.25) {
+    const frequency = track.notes[bgmStep % track.notes.length];
+    if (frequency > 0) {
+      playTone(frequency, frequency, track.stepDuration * 0.9, track.wave, track.volume, bgmNextTime);
+    }
+    bgmNextTime += track.stepDuration;
+    bgmStep += 1;
+  }
+}
+
 function addExplosion(x: number, y: number, size: number): void {
   game.explosions.push({ x, y, age: 0, duration: 0.36, size });
 }
@@ -1351,10 +1814,13 @@ function drawTitleScreen(): void {
   const menuIconWidth = 16;
   const menuGap = 7;
   const menuTextX = centeredMenuGroupX('2 PLAYERS', menuIconWidth, menuGap) + menuIconWidth + menuGap;
-  drawTitleTankIcon(menuTextX - menuGap - menuIconWidth, 149);
+  drawTitleTankIcon(menuTextX - menuGap - menuIconWidth, game.menuIndex === 1 ? 162 : 149);
   pixelText('1 PLAYER', menuTextX, 153, 1, '#fff');
   pixelText('2 PLAYERS', menuTextX, 166, 1, '#fff');
   pixelText(`STAGE ${String(game.stage).padStart(2, '0')}`, centeredScreenTextX('STAGE 01', 1), 184, 1, '#f7d451');
+  if (Math.floor(game.messageBlink * 2) % 2 === 0) {
+    pixelText('PRESS ENTER', centeredScreenTextX('PRESS ENTER', 1), 197, 1, '#f8f8f8');
+  }
   pixelText('(C) 1980 1985 NAMCO LTD.', centeredScreenTextX('(C) 1980 1985 NAMCO LTD.', 1), 209, 1, '#fff');
   pixelText('ALL RIGHTS RESERVED', centeredScreenTextX('ALL RIGHTS RESERVED', 1), 224, 1, '#fff');
 }
@@ -1450,7 +1916,9 @@ function drawBattlefield(): void {
   drawBullets();
   drawPowerUps();
   drawTanks();
+  drawSpawnEffects();
   drawExplosions();
+  drawPopups();
   drawTiles(true);
 
   ctx.restore();
@@ -1556,20 +2024,23 @@ function drawWater(x: number, y: number, shift: number): void {
   ctx.fillStyle = '#2858a8';
   ctx.fillRect(x, y, BLOCK, BLOCK);
   ctx.fillStyle = '#74d8e8';
-  for (let row = 0; row < 2; row += 1) {
-    ctx.fillRect(x + ((row + shift) % 2) * 2, y + 2 + row * 4, 5, 1);
-  }
+  ctx.fillRect(x + shift * 2, y + 1, 4, 1);
+  ctx.fillRect(x + 2 - shift * 2, y + 4, 5, 1);
+  ctx.fillRect(x + shift * 2, y + 6, 3, 1);
 }
 
 function drawForest(x: number, y: number): void {
   ctx.fillStyle = '#30a038';
   ctx.fillRect(x, y, BLOCK, BLOCK);
   ctx.fillStyle = '#80e060';
-  for (let i = 0; i < 5; i += 1) {
-    const px = x + ((i * 3) % 7);
-    const py = y + ((i * 5) % 7);
-    ctx.fillRect(px, py, 2, 2);
-  }
+  ctx.fillRect(x, y, 3, 2);
+  ctx.fillRect(x + 4, y + 2, 3, 2);
+  ctx.fillRect(x + 1, y + 5, 3, 2);
+  ctx.fillRect(x + 5, y + 5, 2, 2);
+  ctx.fillStyle = '#1d6826';
+  ctx.fillRect(x + 6, y, 2, 2);
+  ctx.fillRect(x + 2, y + 3, 2, 2);
+  ctx.fillRect(x + 4, y + 6, 3, 2);
 }
 
 function drawIce(x: number, y: number): void {
@@ -1606,8 +2077,8 @@ function drawBase(x: number, y: number): void {
 }
 
 function drawTanks(): void {
-  if (game.player.alive) {
-    drawTank(game.player);
+  for (const player of alivePlayers()) {
+    drawTank(player);
   }
   for (const enemy of game.enemies) {
     drawTank(enemy);
@@ -1624,30 +2095,45 @@ function drawTank(tank: Tank): void {
     ctx.strokeRect(x + 0.5, y + 0.5, TANK - 1, TANK - 1);
   }
 
-  ctx.fillStyle = tank.bonusCarrier && Math.floor(game.messageBlink * 8) % 2 === 0 ? '#f7d451' : tank.color;
+  const frozen = tank.side === 'enemy' && game.enemyFreezeTimer > 0;
+  let bodyColor = tank.color;
+  let accentColor = tank.accent;
+  if (tank.kind === 'armor' && tank.side === 'enemy') {
+    bodyColor = ARMOR_HP_COLORS[tank.hp] ?? tank.color;
+  }
+  if (tank.bonusCarrier && Math.floor(game.messageBlink * 8) % 2 === 0) {
+    bodyColor = '#f7d451';
+  }
+  if (frozen) {
+    bodyColor = '#a8d8f8';
+    accentColor = '#5898d8';
+  }
+
+  ctx.fillStyle = bodyColor;
 
   if (tank.dir === 'up' || tank.dir === 'down') {
     ctx.fillRect(x, y + 1, 4, 14);
     ctx.fillRect(x + 12, y + 1, 4, 14);
-    ctx.fillStyle = tank.accent;
+    ctx.fillStyle = accentColor;
     ctx.fillRect(x + 5, y + 4, 6, 8);
     ctx.fillRect(x + 7, tank.dir === 'up' ? y : y + 8, 2, 8);
   } else {
     ctx.fillRect(x + 1, y, 14, 4);
     ctx.fillRect(x + 1, y + 12, 14, 4);
-    ctx.fillStyle = tank.accent;
+    ctx.fillStyle = accentColor;
     ctx.fillRect(x + 4, y + 5, 8, 6);
     ctx.fillRect(tank.dir === 'left' ? x : x + 8, y + 7, 8, 2);
   }
 
+  const treadPhase = Math.floor((tank.dir === 'up' || tank.dir === 'down' ? tank.y : tank.x) / 4) % 2;
   ctx.fillStyle = '#181818';
   if (tank.dir === 'up' || tank.dir === 'down') {
-    for (let i = 2; i < TANK; i += 4) {
+    for (let i = 2 + treadPhase * 2; i < TANK; i += 4) {
       ctx.fillRect(x + 1, y + i, 2, 1);
       ctx.fillRect(x + 13, y + i, 2, 1);
     }
   } else {
-    for (let i = 2; i < TANK; i += 4) {
+    for (let i = 2 + treadPhase * 2; i < TANK; i += 4) {
       ctx.fillRect(x + i, y + 1, 1, 2);
       ctx.fillRect(x + i, y + 13, 1, 2);
     }
@@ -1681,18 +2167,21 @@ function drawPowerUps(): void {
 }
 
 function drawPowerUpFrame(x: number, y: number): void {
-  ctx.fillStyle = '#f7d451';
-  ctx.fillRect(x + 2, y + 2, 12, 12);
   ctx.fillStyle = '#181818';
-  ctx.fillRect(x + 4, y + 4, 8, 8);
+  ctx.fillRect(x, y, TILE, TILE);
+  ctx.fillStyle = '#f7d451';
+  ctx.fillRect(x, y, TILE, 1);
+  ctx.fillRect(x, y + TILE - 1, TILE, 1);
+  ctx.fillRect(x, y, 1, TILE);
+  ctx.fillRect(x + TILE - 1, y, 1, TILE);
 }
 
 function drawGrenadePowerUp(x: number, y: number): void {
   ctx.fillStyle = '#6c8f40';
-  ctx.fillRect(x + 5, y + 7, 6, 5);
-  ctx.fillRect(x + 6, y + 6, 4, 7);
+  ctx.fillRect(x + 4, y + 7, 7, 6);
+  ctx.fillRect(x + 5, y + 6, 5, 8);
   ctx.fillStyle = '#fff3b0';
-  ctx.fillRect(x + 6, y + 7, 2, 1);
+  ctx.fillRect(x + 6, y + 8, 2, 2);
   ctx.fillStyle = '#b8c0c8';
   ctx.fillRect(x + 8, y + 4, 3, 2);
   ctx.fillRect(x + 10, y + 5, 2, 1);
@@ -1702,66 +2191,66 @@ function drawGrenadePowerUp(x: number, y: number): void {
 
 function drawHelmetPowerUp(x: number, y: number): void {
   ctx.fillStyle = '#b8c0c8';
-  ctx.fillRect(x + 5, y + 6, 6, 4);
-  ctx.fillRect(x + 4, y + 8, 9, 3);
+  ctx.fillRect(x + 4, y + 6, 8, 4);
+  ctx.fillRect(x + 3, y + 9, 10, 3);
   ctx.fillStyle = '#eef8ff';
-  ctx.fillRect(x + 6, y + 6, 3, 1);
+  ctx.fillRect(x + 5, y + 6, 4, 1);
   ctx.fillStyle = '#687880';
-  ctx.fillRect(x + 4, y + 11, 9, 1);
+  ctx.fillRect(x + 3, y + 11, 10, 1);
   ctx.fillRect(x + 11, y + 9, 2, 2);
 }
 
 function drawShovelPowerUp(x: number, y: number): void {
   ctx.fillStyle = '#8c5a28';
-  ctx.fillRect(x + 7, y + 4, 2, 7);
+  ctx.fillRect(x + 7, y + 3, 2, 8);
   ctx.fillStyle = '#fff3b0';
-  ctx.fillRect(x + 6, y + 3, 4, 2);
+  ctx.fillRect(x + 5, y + 2, 6, 2);
   ctx.fillStyle = '#b8c0c8';
-  ctx.fillRect(x + 5, y + 10, 6, 3);
-  ctx.fillRect(x + 6, y + 13, 4, 1);
+  ctx.fillRect(x + 5, y + 11, 6, 3);
+  ctx.fillRect(x + 6, y + 14, 4, 1);
   ctx.fillStyle = '#687880';
-  ctx.fillRect(x + 5, y + 12, 6, 1);
+  ctx.fillRect(x + 5, y + 13, 6, 1);
 }
 
 function drawStarPowerUp(x: number, y: number): void {
   ctx.fillStyle = '#fff3b0';
-  ctx.fillRect(x + 7, y + 3, 2, 3);
+  ctx.fillRect(x + 7, y + 2, 2, 4);
   ctx.fillRect(x + 6, y + 6, 4, 2);
-  ctx.fillRect(x + 3, y + 8, 10, 2);
-  ctx.fillRect(x + 5, y + 10, 6, 2);
-  ctx.fillRect(x + 4, y + 12, 2, 2);
-  ctx.fillRect(x + 10, y + 12, 2, 2);
+  ctx.fillRect(x + 2, y + 8, 12, 2);
+  ctx.fillRect(x + 4, y + 10, 8, 2);
+  ctx.fillRect(x + 3, y + 12, 3, 2);
+  ctx.fillRect(x + 10, y + 12, 3, 2);
   ctx.fillStyle = '#d8a828';
   ctx.fillRect(x + 7, y + 8, 2, 4);
 }
 
 function drawTankPowerUp(x: number, y: number): void {
   ctx.fillStyle = '#8fa8a2';
-  ctx.fillRect(x + 3, y + 5, 3, 8);
-  ctx.fillRect(x + 10, y + 5, 3, 8);
+  ctx.fillRect(x + 3, y + 4, 3, 9);
+  ctx.fillRect(x + 10, y + 4, 3, 9);
   ctx.fillStyle = '#d04f3f';
-  ctx.fillRect(x + 6, y + 7, 5, 5);
-  ctx.fillRect(x + 10, y + 8, 4, 2);
+  ctx.fillRect(x + 6, y + 6, 5, 5);
+  ctx.fillRect(x + 10, y + 7, 3, 2);
   ctx.fillStyle = '#181818';
-  ctx.fillRect(x + 4, y + 6, 1, 1);
-  ctx.fillRect(x + 4, y + 10, 1, 1);
-  ctx.fillRect(x + 11, y + 6, 1, 1);
-  ctx.fillRect(x + 11, y + 10, 1, 1);
+  ctx.fillRect(x + 4, y + 5, 1, 1);
+  ctx.fillRect(x + 4, y + 11, 1, 1);
+  ctx.fillRect(x + 11, y + 5, 1, 1);
+  ctx.fillRect(x + 11, y + 11, 1, 1);
 }
 
 function drawTimerPowerUp(x: number, y: number): void {
   ctx.fillStyle = '#b8c0c8';
-  ctx.fillRect(x + 4, y + 3, 3, 2);
-  ctx.fillRect(x + 9, y + 3, 3, 2);
-  ctx.fillRect(x + 7, y + 4, 2, 1);
-  ctx.fillRect(x + 5, y + 5, 6, 1);
-  ctx.fillRect(x + 4, y + 6, 1, 5);
-  ctx.fillRect(x + 11, y + 6, 1, 5);
+  ctx.fillRect(x + 4, y + 2, 3, 2);
+  ctx.fillRect(x + 9, y + 2, 3, 2);
+  ctx.fillRect(x + 7, y + 3, 2, 1);
+  ctx.fillRect(x + 5, y + 4, 6, 1);
+  ctx.fillRect(x + 4, y + 5, 1, 6);
+  ctx.fillRect(x + 11, y + 5, 1, 6);
   ctx.fillRect(x + 5, y + 11, 6, 1);
   ctx.fillStyle = '#fff3b0';
-  ctx.fillRect(x + 5, y + 6, 6, 5);
+  ctx.fillRect(x + 5, y + 5, 6, 6);
   ctx.fillStyle = '#181818';
-  ctx.fillRect(x + 8, y + 7, 1, 3);
+  ctx.fillRect(x + 8, y + 6, 1, 3);
   ctx.fillRect(x + 8, y + 9, 3, 1);
   ctx.fillStyle = '#b8c0c8';
   ctx.fillRect(x + 5, y + 12, 2, 1);
@@ -1770,21 +2259,117 @@ function drawTimerPowerUp(x: number, y: number): void {
 
 function drawBullets(): void {
   for (const bullet of game.bullets) {
-    ctx.fillStyle = bullet.side === 'player' ? '#fff' : '#f8f8f8';
-    ctx.fillRect(Math.round(bullet.x), Math.round(bullet.y), BULLET, BULLET);
+    ctx.fillStyle = bullet.side === 'player' ? '#fff' : '#f7d451';
+    const centerX = Math.round(bullet.x + BULLET / 2);
+    const centerY = Math.round(bullet.y + BULLET / 2);
+    if (bullet.dir === 'left' || bullet.dir === 'right') {
+      ctx.fillRect(centerX - 2, centerY - 1, 5, 2);
+    } else {
+      ctx.fillRect(centerX - 1, centerY - 2, 2, 5);
+    }
+  }
+}
+
+const EXPLOSION_FRAMES: Array<{ pattern: string[]; color: string }> = [
+  {
+    color: '#fff3b0',
+    pattern: [
+      '00011000',
+      '00011000',
+      '10011001',
+      '01111110',
+      '01111110',
+      '10011001',
+      '00011000',
+      '00011000',
+    ],
+  },
+  {
+    color: '#f7d451',
+    pattern: [
+      '01000010',
+      '01100110',
+      '00111100',
+      '11111111',
+      '11111111',
+      '00111100',
+      '01100110',
+      '01000010',
+    ],
+  },
+  {
+    color: '#d95032',
+    pattern: [
+      '10000001',
+      '01000010',
+      '00100100',
+      '00011000',
+      '00011000',
+      '00100100',
+      '01000010',
+      '10000001',
+    ],
+  },
+];
+
+const SPAWN_STAR_FRAMES: string[][] = [
+  [
+    '00011000',
+    '00011000',
+    '00011000',
+    '11111111',
+    '11111111',
+    '00011000',
+    '00011000',
+    '00011000',
+  ],
+  [
+    '10000001',
+    '01000010',
+    '00100100',
+    '00011000',
+    '00011000',
+    '00100100',
+    '01000010',
+    '10000001',
+  ],
+];
+
+function drawPixelPattern(pattern: string[], centerX: number, centerY: number, size: number, color: string): void {
+  const pixel = Math.max(1, Math.round(size / pattern.length));
+  const originX = Math.round(centerX - (pixel * pattern.length) / 2);
+  const originY = Math.round(centerY - (pixel * pattern.length) / 2);
+  ctx.fillStyle = color;
+  for (let row = 0; row < pattern.length; row += 1) {
+    for (let col = 0; col < pattern[row].length; col += 1) {
+      if (pattern[row][col] === '1') {
+        ctx.fillRect(originX + col * pixel, originY + row * pixel, pixel, pixel);
+      }
+    }
   }
 }
 
 function drawExplosions(): void {
   for (const explosion of game.explosions) {
     const progress = explosion.age / explosion.duration;
-    const size = explosion.size * (0.45 + progress);
-    const x = explosion.x - size / 2;
-    const y = explosion.y - size / 2;
-    ctx.fillStyle = progress < 0.5 ? '#f7d451' : '#d95032';
-    ctx.fillRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-    ctx.fillStyle = '#fff3b0';
-    ctx.fillRect(Math.round(explosion.x - size / 5), Math.round(explosion.y - size / 5), Math.round(size / 2.5), Math.round(size / 2.5));
+    const frame = EXPLOSION_FRAMES[Math.min(EXPLOSION_FRAMES.length - 1, Math.floor(progress * EXPLOSION_FRAMES.length))];
+    const size = explosion.size * (0.6 + progress * 0.8);
+    drawPixelPattern(frame.pattern, explosion.x, explosion.y, size, frame.color);
+  }
+}
+
+function drawSpawnEffects(): void {
+  for (const effect of game.spawnEffects) {
+    const frame = SPAWN_STAR_FRAMES[Math.floor(effect.age * 12) % SPAWN_STAR_FRAMES.length];
+    drawPixelPattern(frame, effect.x + TANK / 2, effect.y + TANK / 2, TANK, '#f8f8f8');
+  }
+}
+
+function drawPopups(): void {
+  for (const popup of game.popups) {
+    const rise = popup.age * 12;
+    const x = Math.round(popup.x - pixelTextWidth(popup.text, 1) / 2);
+    pixelText(popup.text, x, Math.round(popup.y - rise), 1, popup.color);
   }
 }
 
@@ -1809,6 +2394,11 @@ function drawHud(): void {
   pixelText('IP', HUD_X + 10, 112, 1, '#111');
   drawTankIcon(HUD_X + 11, 128, '#b86020');
   pixelText(String(Math.max(0, game.lives)), HUD_X + 27, 129, 1, '#111');
+  if (game.mode === '2p') {
+    pixelText('IIP', HUD_X + 10, 140, 1, '#111');
+    drawTankIcon(HUD_X + 11, 152, '#3f7828');
+    pixelText(String(Math.max(0, game.lives2)), HUD_X + 27, 153, 1, '#111');
+  }
   drawFlag(HUD_X + 12, 169);
   pixelText(String(game.stage).padStart(2, '0'), HUD_X + 27, 171, 1, '#111');
   pixelText(String(game.score).padStart(6, '0'), HUD_X + 5, 224, 1, '#d8c050');
@@ -1876,21 +2466,26 @@ function drawOverlayMessage(): void {
           : 'GAME OVER';
 
   const subLabel = game.phase === 'won' ? 'ENTER NEXT' : game.phase === 'gameover' ? 'ENTER RETRY' : '';
-  const labelWidth = pixelTextWidth(label, 1);
-  const subLabelWidth = subLabel ? pixelTextWidth(subLabel, 1) : 0;
-  const width = Math.max(labelWidth, subLabelWidth) + 20;
+  const scoreLabels =
+    game.phase !== 'gameover'
+      ? []
+      : game.mode === '2p'
+        ? [`1P ${String(game.score).padStart(6, '0')}`, `2P ${String(game.score2).padStart(6, '0')}`]
+        : [`SCORE ${String(game.score).padStart(6, '0')}`];
+  const lines = [label, ...scoreLabels, subLabel].filter((line) => line !== '');
+  const width = Math.max(...lines.map((line) => pixelTextWidth(line, 1))) + 20;
+  const height = 24 + (lines.length - 1) * 14;
   const x = Math.round((FIELD - width) / 2);
   const y = BOARD_Y + 88;
 
   ctx.fillStyle = '#050505';
-  ctx.fillRect(x, y, width, subLabel ? 40 : 24);
+  ctx.fillRect(x, y, width, height);
   ctx.strokeStyle = '#f8f8f8';
   ctx.lineWidth = 1;
-  ctx.strokeRect(x + 2, y + 2, width - 4, subLabel ? 36 : 20);
-  pixelText(label, centeredTextX(x, width, label, 1), y + 8, 1, '#f8f8f8');
-  if (subLabel) {
-    pixelText(subLabel, centeredTextX(x, width, subLabel, 1), y + 25, 1, '#f8f8f8');
-  }
+  ctx.strokeRect(x + 2, y + 2, width - 4, height - 4);
+  lines.forEach((line, index) => {
+    pixelText(line, centeredTextX(x, width, line, 1), y + 8 + index * 14, 1, '#f8f8f8');
+  });
 }
 
 function centeredTextX(containerX: number, containerWidth: number, text: string, scale: number): number {

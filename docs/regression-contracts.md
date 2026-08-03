@@ -94,9 +94,9 @@ This document records issues and constraints raised during playtesting so future
 - The high-score text, logo lines, menu group, copyright line, and all-rights line should stay centered after font or copy changes.
 - The title screen supports stage selection. Left/right changes the selected stage, number keys `1` through `8` jump to a stage, and Enter starts the selected stage.
 - Stage intro must show the complete selected stage label, for example `STAGE 01`, centered as one text group so the player can tell which stage is loading.
-- The title screen currently displays `2 PLAYERS`, but two-player mode is not implemented.
-- Future work should either implement a real selectable two-player mode with controls, or remove/disable the option so the title screen does not imply a supported mode.
-- Do not treat the visual menu text as proof that 2P gameplay exists.
+- The title screen supports a selectable `1 PLAYER` / `2 PLAYERS` menu. Up/down moves the tank cursor, and Enter starts the highlighted mode.
+- Two-player mode is local co-op on one keyboard: player 1 uses `WASD` + `Space`, player 2 uses arrow keys + right Shift. Each player has independent lives, score, respawn timing, and power-up effects; the game ends only when every player is out of lives or the base is destroyed.
+- Two-player behavior is covered by `node scripts/check-two-player.mjs`.
 
 ## Power-Ups
 

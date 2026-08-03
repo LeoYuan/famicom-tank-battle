@@ -91,18 +91,20 @@ game.powerUps = types.map((type, index) => ({
 api.setGame(game);
 api.drawPowerUps();
 
-assertPixel(5, 8, '#6c8f40', 'grenade should have a green round explosive body');
-assertPixel(13, 4, '#d85028', 'grenade should have a red fuse tip');
-assertPixel(25, 6, '#b8c0c8', 'helmet should have a gray dome');
+assertPixel(0, 0, '#f7d451', 'power-up badge should keep a thin yellow border');
+assertPixel(1, 1, '#181818', 'power-up badge should have a dark inner background');
+assertPixel(6, 10, '#6c8f40', 'grenade should have a green round explosive body');
+assertPixel(12, 3, '#d85028', 'grenade should have a red fuse tip');
+assertPixel(25, 7, '#b8c0c8', 'helmet should have a gray dome');
 assertPixel(29, 10, '#b8c0c8', 'helmet should have a readable brim');
 assertPixel(47, 5, '#8c5a28', 'shovel should have a brown handle');
-assertPixel(45, 11, '#b8c0c8', 'shovel should have a metal blade');
-assertPixel(68, 4, '#fff3b0', 'star should have a bright top point');
-assertPixel(64, 8, '#fff3b0', 'star should have a left point');
-assertPixel(83, 8, '#8fa8a2', 'tank power-up should have left track');
+assertPixel(45, 12, '#b8c0c8', 'shovel should have a metal blade');
+assertPixel(67, 3, '#fff3b0', 'star should have a bright top point');
+assertPixel(62, 8, '#fff3b0', 'star should have a left point');
+assertPixel(84, 8, '#8fa8a2', 'tank power-up should have left track');
 assertPixel(88, 8, '#d04f3f', 'tank power-up should have a red tank body');
-assertPixel(106, 6, '#fff3b0', 'timer should have a bright clock face');
-assertPixel(105, 3, '#b8c0c8', 'timer should have a clock bell');
+assertPixel(106, 7, '#fff3b0', 'timer should have a bright clock face');
+assertPixel(105, 2, '#b8c0c8', 'timer should have a clock bell');
 assertPixel(104, 8, '#b8c0c8', 'timer should have a readable left metal clock rim');
 assertPixel(111, 8, '#b8c0c8', 'timer should have a readable right metal clock rim');
 
