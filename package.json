@@ -13,7 +13,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "app": "npm run build && electron .",
     "app:dev": "APP_DEV_URL=http://localhost:5173 electron .",
-    "app:pack": "npm run build && electron-builder --mac dir"
+    "app:pack": "npm run build && electron-builder --mac dmg zip"
   },
   "keywords": [
     "tank",
@@ -44,7 +44,8 @@
     "mac": {
       "category": "public.app-category.games",
       "target": [
-        "dir"
+        "dmg",
+        "zip"
       ]
     }
   }

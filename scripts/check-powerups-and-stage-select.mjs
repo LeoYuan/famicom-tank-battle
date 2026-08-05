@@ -99,7 +99,7 @@ function checkStageSelection() {
   assertEqual(api.getGame().stage, 5, 'stage selector should move forward');
 
   api.selectTitleStage(99);
-  assertEqual(api.getGame().stage, 8, 'stage selector should clamp to last stage');
+  assertEqual(api.getGame().stage, 20, 'stage selector should clamp to last stage');
 
   api.selectTitleStage(-99);
   assertEqual(api.getGame().stage, 1, 'stage selector should clamp to first stage');
@@ -131,7 +131,7 @@ function checkBonusCarrierDropsPowerUp() {
 }
 
 function checkRandomPowerUpsSpawnReachably() {
-  for (let stage = 1; stage <= 8; stage += 1) {
+  for (let stage = 1; stage <= 20; stage += 1) {
     const game = api.createGame(stage);
     game.phase = 'playing';
     api.setGame(game);

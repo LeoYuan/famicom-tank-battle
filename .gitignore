@@ -1,6 +1,8 @@
 node_modules/
 dist/
 release/
+artifacts/
+screenshots/
 reference/current/*.png
 reference/current/*.jpg
 reference/current/*.jpeg

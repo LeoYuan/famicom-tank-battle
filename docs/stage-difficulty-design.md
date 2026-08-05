@@ -2,7 +2,7 @@
 
 ## Scope
 
-The current game ships the first 8 stages with a clear difficulty curve, then uses the same rules to extend toward a larger Battle City-style set later.
+The game ships 20 stages with a clear difficulty curve, following the same rules as the original 8-stage set and extending toward a larger Battle City-style set.
 
 Original Battle City is a useful reference point, but not a strict content target for this pass: it uses a 13x13 battlefield layout and has 35 stages, with a repeated objective of protecting the base while destroying enemy tanks. This project should first make 8 stages that are readable, fair, and mechanically varied before expanding the stage count.
 
@@ -29,7 +29,7 @@ The automated stage checker should compute these values from each 13x13 coarse m
 - `terrainComplexity`: count and distribution of steel, water, forest, and ice.
 - `openAreaRatio`: passable map tiles divided by total battlefield tiles.
 
-Suggested thresholds for the first 8 stages:
+Suggested thresholds for all 20 stages:
 
 | Stage | Min spawn-to-base path | Base adjacent open tiles | Base protection | Side-lane directness |
 | --- | ---: | ---: | ---: | --- |
@@ -41,6 +41,7 @@ Suggested thresholds for the first 8 stages:
 | 6 | Medium | 0 | Brick ring with steel front stopper | Two side lanes, both interrupted |
 | 7 | Medium-low | 0 | Steel front and side stoppers | High pressure without instant base rush |
 | 8 | Medium-low | 0 | Steel front and side stoppers | High pressure without instant base rush |
+| 9-20 | Medium-low | 0 | Steel front and side stoppers | High pressure without instant base rush |
 
 The checker now uses calibrated numeric values for this 13x13 board. Path values are coarse-tile route costs to the base perimeter. Brick tiles count as high-cost destructible route tiles, while steel, water, and the base are blocked.
 
@@ -54,6 +55,18 @@ The checker now uses calibrated numeric values for this 13x13 board. Path values
 | 6 | 13 | 0 | 5 |
 | 7 | 13 | 0 | 5 |
 | 8 | 13 | 0 | 5 |
+| 9 | 13 | 0 | 5 |
+| 10 | 13 | 0 | 5 |
+| 11 | 13 | 0 | 5 |
+| 12 | 13 | 0 | 5 |
+| 13 | 13 | 0 | 5 |
+| 14 | 13 | 0 | 5 |
+| 15 | 13 | 0 | 5 |
+| 16 | 13 | 0 | 5 |
+| 17 | 13 | 0 | 5 |
+| 18 | 13 | 0 | 5 |
+| 19 | 13 | 0 | 5 |
+| 20 | 13 | 0 | 5 |
 
 The checker also computes a composite difficulty score:
 
@@ -98,10 +111,13 @@ For the first 8 stages, keep the enemy mechanics predictable while maps carry mo
 - Stage 6: three enemy spawn positions, 1.0s initial delay, 1.8s spawn interval, 4 enemies max on field.
 - Stage 7: three enemy spawn positions, 0.8s initial delay, 1.65s spawn interval, 4 enemies max on field.
 - Stage 8: three enemy spawn positions, 0.8s initial delay, 1.55s spawn interval, 4 enemies max on field.
+- Stages 9-12: three enemy spawn positions, 0.8s initial delay, 1.5s-1.35s spawn interval, 4 enemies max on field.
+- Stages 13-16: three enemy spawn positions, 0.8s initial delay, 1.3s-1.15s spawn interval, 5 enemies max on field.
+- Stages 17-20: three enemy spawn positions, 0.8s initial delay, 1.1s-0.95s spawn interval, 5 enemies max on field.
 
 These values control spawn pressure, not enemy movement speed. Do not increase enemy movement speed or fire rate before it is explicitly designed and covered by checks. Without metrics, faster enemies can mask bad map design.
 
-Stages 1-4 do not enable the center enemy spawn. This avoids enemies attacking the base from spawn by firing down the center lane. Stage 5 is the first stage that may enable all three enemy spawn positions.
+Stages 1-4 do not enable the center enemy spawn. This avoids enemies attacking the base from spawn by firing down the center lane. Stage 5 is the first stage that may enable all three enemy spawn positions. Stages 5-20 all use three spawn positions.
 
 ## Enemy Kinds
 
@@ -112,7 +128,7 @@ Enemy variety comes from four kinds with fixed stat profiles (`ENEMY_KIND_STATS`
 - `power` (300 pts): faster bullets, 1 HP.
 - `armor` (400 pts): 4 HP, body color shifts green -> yellow -> orange -> gray as HP drops.
 
-Each stage declares an `enemyMix` (counts per kind summing to 20). The spawn sequence is a deterministic round-robin expansion (`buildEnemySequence`), so spawn kinds add no RNG and seeded QA runs stay reproducible. Later stages shift the mix toward power/armor to raise pressure without touching map design.
+Each stage declares an `enemyMix` (counts per kind summing to 20). The spawn sequence is a deterministic round-robin expansion (`buildEnemySequence`), so spawn kinds add no RNG and seeded QA runs stay reproducible. Later stages shift the mix toward power/armor to raise pressure without touching map design. Stages 17-20 remove basic enemies entirely.
 
 ## Stage Plan
 
@@ -239,9 +255,53 @@ Acceptance:
 - All spawns remain reachable and do not trap enemies.
 - Terrain includes steel, water, forest, and ice.
 
-## Expansion Rules Beyond 8 Stages
+### Stages 9-12: Extended Pressure
 
-When expanding beyond the first 8 stages, add stages in blocks of 4:
+Purpose: extend the first 8 stages with higher route and terrain pressure while keeping the same base-defense rules.
+
+Map goals:
+- Keep all spawns reachable and base fully protected.
+- Add incremental terrain complexity (more ice, water, forest, or steel anchors) without opening the base ring.
+- Maintain a non-decreasing difficulty score across the block.
+
+Acceptance:
+- All spawns can enter the field and reach the base perimeter.
+- `minSpawnToBasePath` stays at or above 13.
+- `baseAdjacentOpenCount` remains 0.
+- Difficulty score does not drop below Stage 8.
+
+### Stages 13-16: Higher Enemy Pressure
+
+Purpose: raise enemy pressure through faster spawn timing and tougher enemy mixes while keeping maps readable.
+
+Map goals:
+- Same terrain rules as stages 9-12.
+- Increase max enemies on field to 5.
+- Shift enemy mix toward armor and power.
+
+Acceptance:
+- All spawns can enter the field and reach the base perimeter.
+- `minSpawnToBasePath` stays at or above 13.
+- Difficulty score does not drop below Stage 12.
+
+### Stages 17-20: Endgame Challenge
+
+Purpose: capstone set for 20 stages with maximum pressure.
+
+Map goals:
+- Highest terrain complexity in the 20-stage set.
+- Enemy mix removes basic enemies entirely.
+- Spawn interval drops below 1.1s.
+
+Acceptance:
+- All spawns can enter the field and reach the base perimeter.
+- `minSpawnToBasePath` stays at or above 13.
+- Difficulty score does not drop below Stage 16.
+- Terrain includes steel, water, forest, and ice.
+
+## Expansion Rules Beyond 20 Stages
+
+When expanding beyond 20 stages, add stages in blocks of 4:
 
 - Block A: introduce a new terrain pattern or route pattern.
 - Block B: combine that pattern with higher base exposure.
@@ -252,7 +312,7 @@ Every new stage must pass the same path and base-exposure checker. Difficulty sh
 
 ## Implementation Notes
 
-The stage analysis script is `scripts/check-stage-difficulty.mjs`, exposed through `npm run check:stages`. It parses `LEVELS_13_DRAFT`, validates all 8 maps, computes route metrics, and fails CI-style when a stage traps enemies at spawn, gives an active spawn a direct bullet line to the base, exposes the base too early, introduces terrain too early, or breaks the non-decreasing difficulty score.
+The stage analysis script is `scripts/check-stage-difficulty.mjs`, exposed through `npm run check:stages`. It parses `LEVELS_13_DRAFT`, validates all 20 maps, computes route metrics, and fails CI-style when a stage traps enemies at spawn, gives an active spawn a direct bullet line to the base, exposes the base too early, introduces terrain too early, or breaks the non-decreasing difficulty score.
 
 General playtest and regression constraints outside stage design are recorded in `docs/regression-contracts.md`.
 
@@ -266,5 +326,5 @@ When changing maps:
 ## References
 
 - Battle City reference behavior: 13x13 battlefield, protect the base, destroy enemy tanks.
-- Original scale target: 35 stages. This project starts with 8 stages to establish quality and validation before expanding.
+- Original scale target: 35 stages. This project ships 20 stages with established quality and validation, and can expand further toward the original scale.
 - Original-style bonus behavior: flashing enemy tanks can drop power-ups such as grenade, helmet, shovel, star, tank, and timer. This project implements those effects in a simplified form and covers them with `scripts/check-powerups-and-stage-select.mjs`.

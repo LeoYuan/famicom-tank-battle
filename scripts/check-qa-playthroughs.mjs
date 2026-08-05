@@ -97,7 +97,7 @@ const api = context.__qaPlaythroughTest;
 const failures = [];
 const summaries = [];
 
-for (let stage = 1; stage <= 8; stage += 1) {
+for (let stage = 1; stage <= 20; stage += 1) {
   const summary = {
     stage,
     baseHitRuns: 0,
@@ -133,7 +133,7 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('\nQA playthrough check passed for 8 stages x 10 seeded runs');
+console.log('\nQA playthrough check passed for 20 stages x 10 seeded runs');
 
 function runStageAttempt(stage, run, summary) {
   seedRandom(stage * 1000 + run);

@@ -80,13 +80,25 @@ const stageTargets = [
   { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { F: 2 }, forbidden: ['I'] },
   { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { I: 2 }, forbidden: [] },
   { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
+  { minPath: 13, maxOpenRing: 0, minProtection: 5, required: { S: 4, W: 2, F: 2, I: 2 }, forbidden: [] },
 ];
 
 const failures = [];
 const reports = [];
 
-if (levels.length !== 8) {
-  failures.push(`Expected exactly 8 stages, got ${levels.length}`);
+if (levels.length !== 20) {
+  failures.push(`Expected exactly 20 stages, got ${levels.length}`);
 }
 
 checkStageTuning();
@@ -228,11 +240,11 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('\nStage difficulty check passed for all 8 stages');
+console.log('\nStage difficulty check passed for all 20 stages');
 
 function checkStageTuning() {
-  if (!Array.isArray(stageTuning) || stageTuning.length !== 8) {
-    failures.push(`Expected stage tuning for exactly 8 stages, got ${Array.isArray(stageTuning) ? stageTuning.length : 'none'}`);
+  if (!Array.isArray(stageTuning) || stageTuning.length !== 20) {
+    failures.push(`Expected stage tuning for exactly 20 stages, got ${Array.isArray(stageTuning) ? stageTuning.length : 'none'}`);
     return;
   }
 
