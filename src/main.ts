@@ -1214,13 +1214,16 @@ function getDirectionFromKeys(directionKeys: Record<string, Direction>): Directi
 }
 
 function updateEnemies(dt: number): void {
+  for (const enemy of game.enemies) {
+    enemy.spawnShield = Math.max(0, enemy.spawnShield - dt);
+  }
+
   if (game.enemyFreezeTimer > 0) {
     return;
   }
 
   for (const enemy of game.enemies) {
     enemy.cooldown = Math.max(0, enemy.cooldown - dt);
-    enemy.spawnShield = Math.max(0, enemy.spawnShield - dt);
     enemy.aiTimer -= dt;
 
     if (enemy.aiTimer <= 0) {
