@@ -58,7 +58,7 @@ Flashing enemy tanks can drop one temporary power-up:
 - Grenade: destroys all visible enemies.
 - Helmet: gives the player a temporary shield.
 - Shovel: temporarily protects the base wall with steel.
-- Star: upgrades player firing power.
+- Star: upgrades player firing power (level 2 = faster bullets, level 3 = bullets can destroy steel).
 - Tank: grants one extra life.
 - Timer: temporarily freezes enemies.
 

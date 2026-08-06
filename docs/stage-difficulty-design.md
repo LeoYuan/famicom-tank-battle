@@ -327,4 +327,4 @@ When changing maps:
 
 - Battle City reference behavior: 13x13 battlefield, protect the base, destroy enemy tanks.
 - Original scale target: 35 stages. This project ships 20 stages with established quality and validation, and can expand further toward the original scale.
-- Original-style bonus behavior: flashing enemy tanks can drop power-ups such as grenade, helmet, shovel, star, tank, and timer. This project implements those effects in a simplified form and covers them with `scripts/check-powerups-and-stage-select.mjs`.
+- Original-style bonus behavior: flashing enemy tanks can drop power-ups such as grenade, helmet, shovel, star, tank, and timer. Star upgrades player firing power (level 2 = faster bullets, level 3 = bullets can destroy steel). This project implements those effects in a simplified form and covers them with `scripts/check-powerups-and-stage-select.mjs`.

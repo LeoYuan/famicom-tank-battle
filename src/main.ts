@@ -45,6 +45,7 @@ interface Bullet {
   speed: number;
   alive: boolean;
   ownerId: number;
+  powerLevel: number;
 }
 
 interface Explosion {
@@ -1412,6 +1413,7 @@ function tryShoot(tank: Tank): void {
     speed: tank.side === 'player' ? (tank.powerLevel >= 2 ? 170 : 148) : ENEMY_KIND_STATS[tank.kind].bulletSpeed,
     alive: true,
     ownerId: tank.id,
+    powerLevel: tank.powerLevel,
   });
 
   tank.cooldown = tank.side === 'player' ? (tank.powerLevel >= 2 ? 0.26 : 0.34) : 0.85 + Math.random() * 0.55;
@@ -1480,7 +1482,12 @@ function hitTile(bullet: Bullet): boolean {
       damageBrickLine(x, y, bullet.dir);
       playSfx('hitBrick');
     } else if (tile === 'S') {
-      playSfx('hitSteel');
+      if (bullet.side === 'player' && bullet.powerLevel >= 3) {
+        damageSteelLine(x, y, bullet.dir);
+        playSfx('hitBrick');
+      } else {
+        playSfx('hitSteel');
+      }
     }
     if (tile === 'E') {
       destroyBase(x, y);
@@ -1525,6 +1532,26 @@ function damageBrickLine(x: number, y: number, bulletDir: Direction): void {
 
 function clearBrick(x: number, y: number): void {
   if (game.map[y]?.[x] === 'B') {
+    game.map[y][x] = '.';
+  }
+}
+
+function damageSteelLine(x: number, y: number, bulletDir: Direction): void {
+  const coarseX = Math.floor(x / 2) * 2;
+  const coarseY = Math.floor(y / 2) * 2;
+
+  if (bulletDir === 'up' || bulletDir === 'down') {
+    clearSteel(coarseX, y);
+    clearSteel(coarseX + 1, y);
+    return;
+  }
+
+  clearSteel(x, coarseY);
+  clearSteel(x, coarseY + 1);
+}
+
+function clearSteel(x: number, y: number): void {
+  if (game.map[y]?.[x] === 'S') {
     game.map[y][x] = '.';
   }
 }
