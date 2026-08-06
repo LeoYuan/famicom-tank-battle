@@ -132,7 +132,7 @@ const ctx = getCanvasContext(canvas);
 
 const SCREEN_WIDTH = 256;
 const SCREEN_HEIGHT = 240;
-const SCREEN_MAX_SCALE = 4;
+const SCREEN_MAX_SCALE = 16;
 const SCREEN_FRAME_EXTRA = 52;
 const TILE = 16;
 const BOARD = 13;

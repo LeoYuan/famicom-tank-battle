@@ -70,7 +70,9 @@ vm.runInContext(outputText, context);
 const api = context.__screenScaleTest;
 
 assertEqual(api.screenScaleForViewport(1328, 969), 3, '1328x969 should use a crisp 3x scale');
-assertEqual(api.screenScaleForViewport(1920, 1200), 4, 'large desktop should cap at 4x scale');
+assertEqual(api.screenScaleForViewport(1920, 1200), 4, '1920x1200 desktop should use a 4x scale');
+assertEqual(api.screenScaleForViewport(2560, 1440), 5, '2560x1440 desktop should use a 5x scale');
+assertEqual(api.screenScaleForViewport(3840, 2160), 8, '4K desktop should use an 8x scale');
 assertEqual(api.screenScaleForViewport(390, 844), 1, 'narrow mobile should stay at least 1x scale');
 
 const applied = appliedScales.find((entry) => entry.name === '--screen-scale');
