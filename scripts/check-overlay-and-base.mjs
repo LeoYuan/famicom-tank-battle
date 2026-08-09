@@ -124,6 +124,7 @@ checkRightBattlefieldEdgeDoesNotDrawInternalGap();
 checkHudStageNumberAlignsWithFlag();
 checkHudFlagSizeMatchesTankIcon();
 checkEnterPauseToggle();
+checkGameOverRetryMenu();
 
 console.log('Overlay and base visual contracts pass');
 
@@ -137,9 +138,9 @@ function checkGameOverPanelFitsRetryText() {
   api.drawOverlayMessage();
 
   const panel = operations.find((operation) => operation.op === 'fillRect');
-  const retryWidth = api.pixelTextWidth('ENTER RETRY', 1);
-  if (!panel || panel.w < retryWidth + 20) {
-    console.error(`Expected retry panel width >= ${retryWidth + 20}, got ${panel?.w}`);
+  const retryWidth = api.pixelTextWidth('CONTINUE STAGE 01', 1);
+  if (!panel || panel.w < retryWidth + 52) {
+    console.error(`Expected retry panel width >= ${retryWidth + 52}, got ${panel?.w}`);
     process.exit(1);
   }
 }
@@ -156,7 +157,16 @@ function checkGameOverTextIsCentered() {
 
   const panel = operations.find((operation) => operation.op === 'fillRect');
   assertTextCentered(panel, context.__pixelTextCalls.find((call) => call.text === 'GAME OVER'), 'GAME OVER');
-  assertTextCentered(panel, context.__pixelTextCalls.find((call) => call.text === 'ENTER RETRY'), 'ENTER RETRY');
+  assertTextCentered(
+    panel,
+    context.__pixelTextCalls.find((call) => call.text === 'CONTINUE STAGE 01'),
+    'CONTINUE STAGE 01',
+  );
+  assertTextCentered(
+    panel,
+    context.__pixelTextCalls.find((call) => call.text === 'RETRY STAGE 01'),
+    'RETRY STAGE 01',
+  );
 }
 
 function checkBaseUsesEaglePalette() {
@@ -434,6 +444,21 @@ function checkEnterPauseToggle() {
   assertEqual(api.getGame().phase, 'paused', 'Enter should pause while playing');
   api.handleStartPause();
   assertEqual(api.getGame().phase, 'playing', 'Enter should resume while paused');
+}
+
+function checkGameOverRetryMenu() {
+  const game = api.createGame(7);
+  game.phase = 'gameover';
+  api.setGame(game);
+  api.handleStartPause();
+  assertEqual(api.getGame().stage, 7, 'Enter on gameover should retry the failed stage by default');
+
+  const restart = api.createGame(7);
+  restart.phase = 'gameover';
+  restart.gameoverMenuIndex = 1;
+  api.setGame(restart);
+  api.handleStartPause();
+  assertEqual(api.getGame().stage, 1, 'second gameover option should restart from stage 1');
 }
 
 function assertTextCentered(panel, call, label) {

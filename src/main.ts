@@ -111,6 +111,7 @@ interface GameState {
   player2RespawnTimer: number;
   mode: GameMode;
   menuIndex: number;
+  gameoverMenuIndex: number;
   enemies: Tank[];
   bullets: Bullet[];
   explosions: Explosion[];
@@ -898,6 +899,16 @@ window.addEventListener('keydown', (event) => {
         }
       }
     }
+    if (game.phase === 'gameover') {
+      if (
+        event.code === 'ArrowUp' ||
+        event.code === 'ArrowDown' ||
+        event.code === 'KeyW' ||
+        event.code === 'KeyS'
+      ) {
+        game.gameoverMenuIndex = game.gameoverMenuIndex === 0 ? 1 : 0;
+      }
+    }
     if (event.code === 'Enter') {
       handleStartPause();
     }
@@ -970,6 +981,7 @@ function createGame(stage: number, mode: GameMode = '1p'): GameState {
     player2RespawnTimer: 0,
     mode,
     menuIndex: mode === '2p' ? 1 : 0,
+    gameoverMenuIndex: 0,
     enemies: [],
     bullets: [],
     explosions: [],
@@ -1105,7 +1117,7 @@ function handleStartPause(): void {
     return;
   }
   if (game.phase === 'gameover') {
-    game = createGame(1, game.mode);
+    game = createGame(game.gameoverMenuIndex === 0 ? game.stage : 1, game.mode);
     startStageIntro();
   }
 }
@@ -2823,15 +2835,20 @@ function drawOverlayMessage(): void {
           ? 'STAGE CLEAR'
           : 'GAME OVER';
 
-  const subLabel = game.phase === 'won' ? 'ENTER NEXT' : game.phase === 'gameover' ? 'ENTER RETRY' : '';
+  const subLabel = game.phase === 'won' ? 'ENTER NEXT' : '';
   const scoreLabels =
     game.phase !== 'gameover'
       ? []
       : game.mode === '2p'
         ? [`1P ${String(game.score).padStart(6, '0')}`, `2P ${String(game.score2).padStart(6, '0')}`]
         : [`SCORE ${String(game.score).padStart(6, '0')}`];
-  const lines = [label, ...scoreLabels, subLabel].filter((line) => line !== '');
-  const width = Math.max(...lines.map((line) => pixelTextWidth(line, 1))) + 20;
+  const gameoverOptions =
+    game.phase === 'gameover'
+      ? [`CONTINUE STAGE ${String(game.stage).padStart(2, '0')}`, 'RETRY STAGE 01']
+      : [];
+  const lines = [label, ...scoreLabels, subLabel, ...gameoverOptions].filter((line) => line !== '');
+  const width =
+    Math.max(...lines.map((line) => pixelTextWidth(line, 1))) + (game.phase === 'gameover' ? 52 : 20);
   const height = 24 + (lines.length - 1) * 14;
   const x = Math.round((FIELD - width) / 2);
   const y = BOARD_Y + 88;
@@ -2844,6 +2861,11 @@ function drawOverlayMessage(): void {
   lines.forEach((line, index) => {
     pixelText(line, centeredTextX(x, width, line, 1), y + 8 + index * 14, 1, '#f8f8f8');
   });
+  if (game.phase === 'gameover') {
+    const optionIndex = lines.length - 2 + game.gameoverMenuIndex;
+    const optionX = centeredTextX(x, width, lines[optionIndex], 1);
+    drawTitleTankIcon(optionX - 22, y + 4 + optionIndex * 14);
+  }
 }
 
 function centeredTextX(containerX: number, containerWidth: number, text: string, scale: number): number {
