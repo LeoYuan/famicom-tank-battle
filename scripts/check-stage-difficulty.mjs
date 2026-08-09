@@ -10,6 +10,7 @@ const instrumented = `${source}
 globalThis.__stageDifficultyTest = {
   LEVELS_13_DRAFT,
   STAGE_TUNING: typeof STAGE_TUNING === 'undefined' ? null : STAGE_TUNING,
+  ENEMY_KIND_STATS: typeof ENEMY_KIND_STATS === 'undefined' ? null : ENEMY_KIND_STATS,
   parseLevel,
 };
 `;
@@ -58,7 +59,12 @@ context.globalThis = context;
 vm.createContext(context);
 vm.runInContext(outputText, context);
 
-const { LEVELS_13_DRAFT: levels, STAGE_TUNING: stageTuning, parseLevel } = context.__stageDifficultyTest;
+const {
+  LEVELS_13_DRAFT: levels,
+  STAGE_TUNING: stageTuning,
+  ENEMY_KIND_STATS: enemyKindStats,
+  parseLevel,
+} = context.__stageDifficultyTest;
 
 const BOARD = 13;
 const SPAWNS = [
@@ -70,6 +76,16 @@ const PASSABLE = new Set(['.', 'F', 'I']);
 const ROUTABLE = new Set(['.', 'B', 'F', 'I']);
 const BULLET_PASSABLE = new Set(['.', 'W', 'F', 'I']);
 const TERRAIN = ['S', 'W', 'F', 'I'];
+
+// Composite difficulty model, see docs/superpowers/specs/2026-08-09-stage-difficulty-model-design.md
+const SPAWN_LANE_BONUS = 5;
+const TARGET_DIFFICULTY_INTERCEPT = 27;
+const TARGET_DIFFICULTY_SLOPE = 16.2;
+const DIFFICULTY_BAND = 16;
+const MAX_DIFFICULTY_JUMP = 30;
+const ONBOARDING_STAGES = 3;
+const BASE_ENEMY_SPEED = 34;
+const BASE_BULLET_SPEED = 120;
 
 const stageTargets = [
   { minPath: 14, maxOpenRing: 0, minProtection: 5, required: {}, forbidden: ['W', 'F', 'I'] },
@@ -130,6 +146,10 @@ levels.forEach((rows, stageIndex) => {
   const minSpawnToBasePath = Math.min(...spawnReports.map((report) => report.baseDistance));
   const openAreaRatio = countOpenArea(map) / (BOARD * BOARD);
   const difficultyScore = calculateDifficultyScore(minSpawnToBasePath, openRingCount, terrainCounts);
+  const spawnLaneCount = countSpawnLanes(map);
+  const mapScore = difficultyScore + spawnLaneCount * SPAWN_LANE_BONUS;
+  const enemyScore = calculateEnemyScore(stageTuning?.[stageIndex], enemyKindStats);
+  const compositeDifficulty = enemyScore + mapScore;
   const directBaseApproach = hasDirectBaseApproach(map, base, activeSpawns);
   const breakableDirectBaseApproach = hasBreakableDirectBaseApproach(map, base, activeSpawns);
   const spawnBulletLineToBase = hasSpawnBulletLineToBase(map, activeSpawns);
@@ -143,6 +163,10 @@ levels.forEach((rows, stageIndex) => {
     terrainCounts,
     openAreaRatio,
     difficultyScore,
+    spawnLaneCount,
+    mapScore,
+    enemyScore,
+    compositeDifficulty,
     directBaseApproach,
     breakableDirectBaseApproach,
     spawnBulletLineToBase,
@@ -197,6 +221,29 @@ levels.forEach((rows, stageIndex) => {
         `Stage ${stage}: difficulty score ${difficultyScore} should not drop below Stage ${stage - 1} score ${previous.difficultyScore}`,
       );
     }
+    if (compositeDifficulty < previous.compositeDifficulty) {
+      failures.push(
+        `Stage ${stage}: composite difficulty ${compositeDifficulty.toFixed(1)} should not drop below Stage ${stage - 1} D ${previous.compositeDifficulty.toFixed(1)}`,
+      );
+    }
+    const difficultyJump = compositeDifficulty - previous.compositeDifficulty;
+    if (difficultyJump > MAX_DIFFICULTY_JUMP) {
+      failures.push(
+        `Stage ${stage}: difficulty jump +${difficultyJump.toFixed(1)} from Stage ${stage - 1} exceeds limit ${MAX_DIFFICULTY_JUMP}`,
+      );
+    }
+  }
+
+  const targetDifficulty = TARGET_DIFFICULTY_INTERCEPT + (stage - 1) * TARGET_DIFFICULTY_SLOPE;
+  if (compositeDifficulty > targetDifficulty + DIFFICULTY_BAND) {
+    failures.push(
+      `Stage ${stage}: composite difficulty ${compositeDifficulty.toFixed(1)} exceeds target band ceiling ${(targetDifficulty + DIFFICULTY_BAND).toFixed(1)}`,
+    );
+  }
+  if (stage > ONBOARDING_STAGES && compositeDifficulty < targetDifficulty - DIFFICULTY_BAND) {
+    failures.push(
+      `Stage ${stage}: composite difficulty ${compositeDifficulty.toFixed(1)} is below target band floor ${(targetDifficulty - DIFFICULTY_BAND).toFixed(1)}`,
+    );
   }
 
   if (stage <= 4 && directBaseApproach) {
@@ -225,6 +272,9 @@ for (const report of reports) {
       `terrain=${JSON.stringify(report.terrainCounts)}`,
       `open=${report.openAreaRatio.toFixed(2)}`,
       `score=${report.difficultyScore}`,
+      `lanes=${report.spawnLaneCount}`,
+      `enemy=${report.enemyScore.toFixed(1)}`,
+      `D=${report.compositeDifficulty.toFixed(1)}`,
       `directBaseApproach=${report.directBaseApproach}`,
       `breakableDirectBaseApproach=${report.breakableDirectBaseApproach}`,
       `spawnBulletLineToBase=${report.spawnBulletLineToBase}`,
@@ -509,6 +559,35 @@ function terrainComplexityScore(counts) {
 
 function calculateDifficultyScore(minPath, openRingCount, terrainCounts) {
   return terrainComplexityScore(terrainCounts) + openRingCount * 4 + Math.max(0, 18 - minPath);
+}
+
+function countSpawnLanes(map) {
+  return SPAWNS.filter(({ x }) => {
+    for (let y = 0; y < BOARD; y += 1) {
+      if (!PASSABLE.has(tileAt(map, x, y))) {
+        return false;
+      }
+    }
+    return true;
+  }).length;
+}
+
+function tankThreat(kind, stats) {
+  const kindStats = stats[kind];
+  const speedBonus = kindStats.speed > BASE_ENEMY_SPEED ? 0.25 : 0;
+  const bulletBonus = kindStats.bulletSpeed > BASE_BULLET_SPEED ? 0.25 : 0;
+  return kindStats.hp * (1 + speedBonus + bulletBonus);
+}
+
+function calculateEnemyScore(tuning, stats) {
+  if (!tuning || !stats) {
+    return 0;
+  }
+  const stageThreat = Object.entries(tuning.enemyMix).reduce(
+    (sum, [kind, count]) => sum + count * tankThreat(kind, stats),
+    0,
+  );
+  return stageThreat * (tuning.maxEnemiesOnField / tuning.enemySpawnInterval);
 }
 
 function uniquePoints(points) {
