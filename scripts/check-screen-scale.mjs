@@ -69,14 +69,14 @@ vm.runInContext(outputText, context);
 
 const api = context.__screenScaleTest;
 
-assertEqual(api.screenScaleForViewport(1328, 969), 3, '1328x969 should use a crisp 3x scale');
-assertEqual(api.screenScaleForViewport(1920, 1200), 4, '1920x1200 desktop should use a 4x scale');
-assertEqual(api.screenScaleForViewport(2560, 1440), 5, '2560x1440 desktop should use a 5x scale');
-assertEqual(api.screenScaleForViewport(3840, 2160), 8, '4K desktop should use an 8x scale');
-assertEqual(api.screenScaleForViewport(390, 844), 1, 'narrow mobile should stay at least 1x scale');
+assertEqual(api.screenScaleForViewport(1328, 969), 917 / 240, '1328x969 should fill the viewport height');
+assertEqual(api.screenScaleForViewport(1920, 1200), 1148 / 240, '1920x1200 desktop should fill the viewport height');
+assertEqual(api.screenScaleForViewport(2560, 1440), 1388 / 240, '2560x1440 desktop should fill the viewport height');
+assertEqual(api.screenScaleForViewport(3840, 2160), 2108 / 240, '4K desktop should fill the viewport height');
+assertEqual(api.screenScaleForViewport(390, 844), 338 / 256, 'narrow mobile should fill the viewport width');
 
 const applied = appliedScales.find((entry) => entry.name === '--screen-scale');
-assertEqual(applied?.value, '3', 'initial page load should apply the computed integer scale');
+assertEqual(applied?.value, String(917 / 240), 'initial page load should apply the computed fractional scale');
 
 console.log('Screen scale contract passes');
 

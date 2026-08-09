@@ -174,7 +174,7 @@ window.addEventListener('resize', updateScreenScale);
 function screenScaleForViewport(viewportWidth: number, viewportHeight: number): number {
   const widthScale = (viewportWidth - SCREEN_FRAME_EXTRA) / SCREEN_WIDTH;
   const heightScale = (viewportHeight - SCREEN_FRAME_EXTRA) / SCREEN_HEIGHT;
-  return Math.max(1, Math.min(SCREEN_MAX_SCALE, Math.floor(Math.min(widthScale, heightScale))));
+  return Math.max(1, Math.min(SCREEN_MAX_SCALE, Math.min(widthScale, heightScale)));
 }
 
 function updateScreenScale(): void {
