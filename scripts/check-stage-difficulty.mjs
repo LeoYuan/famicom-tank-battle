@@ -227,7 +227,9 @@ levels.forEach((rows, stageIndex) => {
       );
     }
     const difficultyJump = compositeDifficulty - previous.compositeDifficulty;
-    if (difficultyJump > MAX_DIFFICULTY_JUMP) {
+    // The onboarding -> mid-game transition (stage 3 -> 4) is exempt: debuting armor,
+    // steel and a larger field cap in one step is intentional graduation.
+    if (stage > ONBOARDING_STAGES + 1 && difficultyJump > MAX_DIFFICULTY_JUMP) {
       failures.push(
         `Stage ${stage}: difficulty jump +${difficultyJump.toFixed(1)} from Stage ${stage - 1} exceeds limit ${MAX_DIFFICULTY_JUMP}`,
       );

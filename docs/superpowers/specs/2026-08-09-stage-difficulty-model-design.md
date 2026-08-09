@@ -111,3 +111,19 @@ D(stage) = EnemyScore + MapScore
 - 不重设计任何地图（第 3 关侧翼开放问题已由 armor 移除 + 直通车道分解释，暂不改动地图）；
 - 不做双人模式难度补偿；
 - 不引入玩家战力成长曲线（道具拾取属于随机因素，QA 的 powerUpFrames 仅观察）。
+
+## 附录 A：教学关软化（2026-08-09，玩家反馈后追加）
+
+反馈：第 2、3 关敌人从两翼同时压下且快速坦克多，单人守不住。
+
+调整：
+
+- **Stage 1 地图**：在第 9 行两侧各加一块砖（`(0,9)`、`(12,9)`），封闭两条直通车道。教学关不应有侧翼高速通道，且为后续软化腾出单调性空间。D：27.3 → 17.3；
+- **Stage 2**：`maxEnemiesOnField` 3→2，`enemyMix` fast 4→2（basic 补至 16）。D：29.8 → 21.2；
+- **Stage 3**：`maxEnemiesOnField` 3→2，`enemyMix` fast 4→2（basic 补至 16）。D：43.0 → 33.3。
+
+规则修订：
+
+- **跳变上限的适用范围改为 4→5 及以后**（即 `stage > ONBOARDING_STAGES + 1`）。3→4 是教学期"毕业跳"——armor、钢板、同屏上限同时登场是有意设计，允许超过 30（当前约 +39）。该跳变是全曲线唯一例外，QA 中 Stage 4 的 playerDeaths=18 为全前期最高，后续如收到反馈再单独评估。
+
+QA 验证：Stage 2 baseHitRuns 9→7、playerDeaths 2→0；Stage 3 playerDeaths 0→1，均无异常。

@@ -218,8 +218,8 @@ const STAGE_TUNING: StageTuning[] = [
     initialEnemySpawnDelay: 2.0,
     enemySpawnInterval: 2.6,
     blockedSpawnRetryDelay: 0.7,
-    maxEnemiesOnField: 3,
-    enemyMix: { basic: 14, fast: 4, power: 2, armor: 0 },
+    maxEnemiesOnField: 2,
+    enemyMix: { basic: 16, fast: 2, power: 2, armor: 0 },
   },
   {
     enemySpawnTiles: [
@@ -229,8 +229,8 @@ const STAGE_TUNING: StageTuning[] = [
     initialEnemySpawnDelay: 1.5,
     enemySpawnInterval: 2.3,
     blockedSpawnRetryDelay: 0.6,
-    maxEnemiesOnField: 3,
-    enemyMix: { basic: 14, fast: 4, power: 2, armor: 0 },
+    maxEnemiesOnField: 2,
+    enemyMix: { basic: 16, fast: 2, power: 2, armor: 0 },
   },
   {
     enemySpawnTiles: [
@@ -569,7 +569,7 @@ const LEVELS_13_DRAFT: string[][] = [
     '.B.BB...BB.B.',
     '.B.BB...BB.B.',
     '.B.BB...BB.B.',
-    '.B.B.....B.B.',
+    'BB.B.....B.BB',
     '.B.BBBBBBB.B.',
     '.....BBB.....',
     '.....BEB.....',
