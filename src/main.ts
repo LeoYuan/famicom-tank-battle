@@ -230,7 +230,7 @@ const STAGE_TUNING: StageTuning[] = [
     enemySpawnInterval: 2.3,
     blockedSpawnRetryDelay: 0.6,
     maxEnemiesOnField: 3,
-    enemyMix: { basic: 12, fast: 4, power: 2, armor: 2 },
+    enemyMix: { basic: 14, fast: 4, power: 2, armor: 0 },
   },
   {
     enemySpawnTiles: [
